@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>경영정보시각화능력 필기 — 핵심용어 학습장</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Malgun Gothic", "맑은 고딕", sans-serif;
+    font-size: 10.5pt; line-height: 1.55; color: #1a1a1a;
+    max-width: 210mm; margin: 0 auto; padding: 14mm 12mm;
+    background: #fff;
+  }
+  header { border-bottom: 3px solid #1a1a1a; padding-bottom: 8px; margin-bottom: 4px; }
+  header h1 { font-size: 17pt; letter-spacing: -0.5px; }
+  header .sub { font-size: 9pt; color: #555; margin-top: 3px; }
+  .howto { font-size: 8.5pt; color: #666; background: #f4f4f4; padding: 6px 10px; margin: 8px 0 14px; border-radius: 4px; }
+  h2 {
+    font-size: 12.5pt; margin: 22px 0 8px; padding: 5px 10px;
+    background: #1a1a1a; color: #fff; border-radius: 3px;
+  }
+  h2 .n { opacity: .6; font-weight: normal; font-size: 10pt; margin-right: 6px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+  th, td { border: 1px solid #999; padding: 4px 7px; vertical-align: top; text-align: left; }
+  th { background: #e9e9e9; font-size: 9pt; }
+  td.chk { width: 22px; text-align: center; font-size: 11pt; color: #888; }
+  td.term { width: 138px; font-weight: 700; }
+  td.term .en { display: block; font-weight: 400; font-size: 8pt; color: #777; }
+  tr { page-break-inside: avoid; }
+  .tip { font-size: 8.5pt; color: #a33; }
+  .grp td.term { background: #f7f7f7; }
+  /* 복습 노트 */
+  .qa { border: 1.5px solid #1a1a1a; border-radius: 4px; padding: 9px 12px; margin-bottom: 10px; page-break-inside: avoid; }
+  .qa .q { font-weight: 700; }
+  .qa .q::before { content: "Q. "; color: #a33; }
+  .qa .a { margin-top: 3px; }
+  .qa .a::before { content: "A. "; font-weight: 700; color: #16608a; }
+  .qa .d { font-size: 8pt; color: #888; text-align: right; }
+  .empty { color: #888; font-size: 9.5pt; border: 1.5px dashed #aaa; border-radius: 4px; padding: 12px; text-align: center; }
+  footer { margin-top: 24px; font-size: 8pt; color: #999; text-align: center; }
+  @media print {
+    body { padding: 0; }
+    .howto { display: none; }
+    h2 { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    th, .grp td.term { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+  @page { size: A4; margin: 13mm 11mm; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>경영정보시각화능력 필기 — 핵심용어 학습장</h1>
+  <div class="sub">시험일 2026-10-03(토) · CBT · 합격: 평균 60점(과목 40점 과락) &nbsp;|&nbsp; 만든날 2026-07-11 · 계속 업데이트됨</div>
+</header>
+<div class="howto">🖨 인쇄: 이 파일을 더블클릭해 브라우저로 열고 Ctrl+P → A4 세로. &nbsp;✅ 사용법: 외운 용어는 ☐에 체크. 3회독 목표(연필→파랑→빨강). 공부하다 Claude에게 질문한 내용은 맨 아래 "복습 노트"에 자동으로 쌓입니다.</div>
+
+<h2><span class="n">과목 영역 1</span>경영정보 일반</h2>
+<table>
+  <tr><th></th><th>용어</th><th>핵심 정의</th></tr>
+  <tr><td class="chk">☐</td><td class="term">BI<span class="en">Business Intelligence</span></td><td>기업 내·외부 데이터를 수집·분석·시각화하여 <b>경영 의사결정을 지원</b>하는 기술과 프로세스의 총칭. 이 자격증의 존재 이유.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">DIKW 피라미드</td><td><b>데이터→정보→지식→지혜</b>. 가공·맥락이 더해지며 가치가 높아지는 단계. (예: 원두 단가 기록=데이터 → 월별 단가 추이=정보 → "환율 오르면 단가 상승"=지식 → 선구매 결정=지혜)</td></tr>
+  <tr><td class="chk">☐</td><td class="term">정형/반정형/비정형 데이터</td><td>정형=행·열 구조(엑셀, DB) / 반정형=구조는 있으나 유연(JSON, XML, 로그) / 비정형=구조 없음(텍스트, 이미지, 영상)</td></tr>
+  <tr><td class="chk">☐</td><td class="term">KPI<span class="en">핵심성과지표</span></td><td>목표 달성 수준을 측정하는 <b>정량 지표</b>. (구매 예: 원가절감률, 납기준수율, 재고회전율)</td></tr>
+  <tr><td class="chk">☐</td><td class="term">CSF<span class="en">핵심성공요인</span></td><td>목표 달성을 위해 반드시 잘해야 하는 요인. CSF(요인)를 측정 가능하게 만든 것이 KPI(지표).</td></tr>
+  <tr><td class="chk">☐</td><td class="term">BSC<span class="en">균형성과표</span></td><td>재무 외 3개 관점을 더해 성과를 균형 있게 관리: <b>재무 · 고객 · 내부프로세스 · 학습과 성장</b> (4관점 암기 필수)</td></tr>
+  <tr><td class="chk">☐</td><td class="term">대시보드 vs 스코어카드</td><td>대시보드=여러 지표를 <b>한 화면에서 모니터링</b>하는 시각화 도구 / 스코어카드=목표 대비 <b>성과 달성도 평가</b>에 초점</td></tr>
+  <tr><td class="chk">☐</td><td class="term">의사결정 3계층</td><td><b>전략적</b>(경영진, 장기·비정형) / <b>관리적</b>(중간관리자, 자원배분) / <b>운영적</b>(실무자, 일상·정형). 대시보드 유형도 이에 대응.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">ERP / SCM / CRM</td><td>ERP=전사 자원(재무·인사·생산) 통합관리 / SCM=공급망(조달~배송) 관리 / CRM=고객관계 관리. <span class="tip">구매 데이터의 원천 시스템이 무엇인지 묻는 유형</span></td></tr>
+  <tr><td class="chk">☐</td><td class="term">OLTP vs OLAP</td><td>OLTP=일상 거래 <b>처리</b>(주문 입력, 실시간, 행 단위) / OLAP=축적 데이터 <b>분석</b>(다차원 집계, 조회 중심)</td></tr>
+  <tr><td class="chk">☐</td><td class="term">DW<span class="en">데이터 웨어하우스</span></td><td>분석 목적으로 여러 원천 데이터를 <b>주제별로 통합·시계열 저장</b>한 데이터베이스. 특징: 주제지향·통합·시계열·비휘발.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">데이터 마트 / 데이터 레이크</td><td>마트=DW의 <b>부서·주제별 부분집합</b>(구매팀용 등) / 레이크=정형+비정형을 <b>원본 그대로</b> 담는 대형 저장소</td></tr>
+  <tr><td class="chk">☐</td><td class="term">ETL<span class="en">추출·변환·적재</span></td><td>원천에서 데이터를 <b>추출(Extract)→변환(Transform)→적재(Load)</b>하는 과정. 변환을 적재 후에 하면 ELT.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">메타데이터</td><td>"데이터에 대한 데이터". 데이터의 정의·구조·출처·생성일 등 설명 정보. (예: 컬럼 정의서)</td></tr>
+  <tr><td class="chk">☐</td><td class="term">데이터 거버넌스</td><td>데이터의 품질·보안·표준·책임을 전사적으로 관리하는 <b>체계와 정책</b>. 원칙·조직·프로세스로 구성.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">마스터 데이터</td><td>업무 전반에서 공통 참조되는 기준 정보(품목, 거래처, 조직 코드 등). <span class="tip">구매 실무의 품목코드가 바로 이것</span></td></tr>
+  <tr><td class="chk">☐</td><td class="term">가명처리 vs 익명처리</td><td>가명=추가 정보와 결합하면 재식별 <b>가능</b>(통계·연구 목적 활용 가능) / 익명=재식별 <b>불가능</b>(개인정보 아님, 자유 활용)</td></tr>
+  <tr><td class="chk">☐</td><td class="term">데이터 리터러시</td><td>데이터를 읽고·해석하고·비판적으로 판단하고·활용해 소통하는 능력. 이 자격증이 검증하려는 핵심 역량.</td></tr>
+</table>
+
+<h2><span class="n">과목 영역 2</span>데이터 해석 및 활용</h2>
+<table>
+  <tr><th></th><th>용어</th><th>핵심 정의</th></tr>
+  <tr><td class="chk">☐</td><td class="term">척도 4종 ★</td><td><b>명목</b>(구분만: 지역, 품목) → <b>서열</b>(순위: 만족도 상중하) → <b>등간</b>(간격 동일, 절대0 없음: 온도) → <b>비율</b>(절대0 있음: 금액, 수량). <span class="tip">매회 출제 단골</span></td></tr>
+  <tr><td class="chk">☐</td><td class="term">모집단 / 표본</td><td>모집단=관심 대상 전체 / 표본=그중 추출한 일부. 표본으로 모집단을 추정하는 것이 통계의 본질.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">대표값 3형제 ★</td><td><b>평균</b>(이상치에 민감) / <b>중앙값</b>(크기순 가운데, 이상치에 강함) / <b>최빈값</b>(가장 잦은 값). <span class="tip">"이상치가 있을 때 적절한 대표값은?" → 중앙값</span></td></tr>
+  <tr><td class="chk">☐</td><td class="term">분산 / 표준편차</td><td>데이터가 평균에서 <b>얼마나 흩어져 있는지</b>. 표준편차=√분산 (원자료와 단위 동일해 해석 용이).</td></tr>
+  <tr><td class="chk">☐</td><td class="term">사분위수 / IQR</td><td>데이터를 4등분: Q1(25%), Q2(중앙값), Q3(75%). <b>IQR=Q3−Q1</b>. 박스플롯의 뼈대.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">이상치 판정 ★</td><td>일반 기준: <b>Q1−1.5×IQR 미만 또는 Q3+1.5×IQR 초과</b>. 무조건 삭제가 아니라 원인 확인 후 처리.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">결측치 처리</td><td>비어 있는 값. 처리법: 삭제 / 대체(평균·중앙값·최빈값) / 예측 대체. 처리 전 <b>발생 원인 파악</b>이 먼저.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">정규분포</td><td>평균 중심 좌우대칭 종 모양. 평균±1σ≈68%, ±2σ≈95%, ±3σ≈99.7%.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">왜도 / 첨도</td><td>왜도=분포의 <b>비대칭</b> 정도(오른쪽 꼬리 길면 양의 왜도, 평균&gt;중앙값) / 첨도=분포의 <b>뾰족한</b> 정도</td></tr>
+  <tr><td class="chk">☐</td><td class="term">상관계수 ★</td><td>두 변수의 <b>선형 관계 강도</b>. −1~+1. 0이면 선형관계 없음. <span class="tip">함정: 상관관계 ≠ 인과관계 (아이스크림 판매와 익사사고)</span></td></tr>
+  <tr><td class="chk">☐</td><td class="term">조인<span class="en">Join</span></td><td>공통 키로 두 테이블을 <b>옆으로(열)</b> 결합. 내부조인=양쪽 모두 존재하는 행만 / 왼쪽 외부조인=왼쪽은 전부 유지.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">유니온<span class="en">Union</span></td><td>구조가 같은 테이블을 <b>아래로(행)</b> 이어 붙임. (예: 1월 발주 + 2월 발주). <span class="tip">조인=옆으로, 유니온=아래로</span></td></tr>
+  <tr><td class="chk">☐</td><td class="term">피벗 / 언피벗</td><td>피벗=긴 데이터를 <b>가로로 요약</b>(행→열) / 언피벗=넓은 데이터를 <b>세로로 풀기</b>(열→행). 시각화 도구는 대체로 세로형(Long) 선호.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">기본키 / 외래키</td><td>기본키=행을 유일하게 식별(발주번호) / 외래키=다른 테이블의 기본키를 참조(발주의 거래처코드)</td></tr>
+  <tr><td class="chk">☐</td><td class="term">파생변수(계산된 필드)</td><td>기존 변수를 가공해 만든 새 변수. (예: 단가×수량=금액, 금액÷총액=구성비)</td></tr>
+  <tr><td class="chk">☐</td><td class="term">구성비 / 증감률 / YoY</td><td>구성비=부분÷전체 / 증감률=(당기−전기)÷전기 / YoY=전년 동기 대비 증감률. <span class="tip">계산 문제로 출제 가능 — 공식 손에 익히기</span></td></tr>
+  <tr><td class="chk">☐</td><td class="term">이동평균</td><td>최근 n개 구간의 평균을 이어 계산 — 단기 변동을 완화해 <b>추세</b>를 드러냄. (예: 단가 3개월 이동평균)</td></tr>
+  <tr><td class="chk">☐</td><td class="term">시계열 구성요소</td><td>시간 순서 데이터의 4요소: <b>추세 · 계절성 · 순환 · 불규칙</b>. (예: 여름철 음료 원재료 수요=계절성)</td></tr>
+</table>
+
+<h2><span class="n">과목 영역 3</span>경영정보시각화 디자인</h2>
+<table>
+  <tr><th></th><th>용어</th><th>핵심 정의</th></tr>
+  <tr><td class="chk">☐</td><td class="term">시각적 인코딩</td><td>데이터 값을 시각 요소(위치, 길이, 색, 크기, 모양)로 변환하는 것. 정확도 순위: <b>위치·길이 &gt; 각도·면적 &gt; 색</b>.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">전주의적 속성 ★</td><td>의식적 주의 <b>이전에 0.5초 내</b> 지각되는 시각 속성 — 색상, 크기, 방향, 움직임 등. 강조(하이라이트)의 이론적 근거.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">게슈탈트 원칙 ★</td><td>인간이 형태를 묶어 보는 원리: <b>근접성</b>(가까우면 한 덩어리) · <b>유사성</b>(닮으면 같은 그룹) · <b>연속성</b> · <b>폐쇄성</b> · <b>공동운명</b>. <span class="tip">각 원칙과 사례 매칭 문제 단골</span></td></tr>
+  <tr><td class="chk">☐</td><td class="term">데이터-잉크 비율</td><td>전체 잉크 중 <b>데이터를 표현하는 잉크의 비율</b>(Tufte). 높을수록 좋음 → 불필요한 장식(3D, 과한 격자선) 제거.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">차트정크</td><td>정보 전달에 기여하지 않는 장식 요소. 데이터-잉크 비율을 낮추는 주범.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">막대 vs 히스토그램</td><td>막대=<b>범주</b> 비교(품목별 금액, 막대 사이 간격 O) / 히스토그램=<b>연속형 분포</b>(구간별 빈도, 간격 X)</td></tr>
+  <tr><td class="chk">☐</td><td class="term">선 차트</td><td><b>시간 흐름·추세</b>에 최적. 범주 비교에는 부적합.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">파이/도넛 차트</td><td><b>전체 대비 구성비</b>. 항목 5~6개 이하일 때만. 항목 많거나 값이 비슷하면 막대가 낫다.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">산점도 / 버블</td><td>산점도=두 연속 변수의 <b>관계·분포</b>(단가 vs 수량) / 버블=크기로 세 번째 변수 추가</td></tr>
+  <tr><td class="chk">☐</td><td class="term">박스플롯</td><td>5수치 요약(최소, Q1, 중앙값, Q3, 최대)으로 <b>분포와 이상치</b>를 한눈에. 그룹 간 분포 비교에 강함.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">히트맵</td><td>행×열 매트릭스의 값을 <b>색 농도</b>로 표현. (예: 월×품목 단가 변동)</td></tr>
+  <tr><td class="chk">☐</td><td class="term">트리맵</td><td>계층 구조의 구성비를 <b>중첩 사각형 면적</b>으로. (예: 카테고리&gt;품목별 구매액)</td></tr>
+  <tr><td class="chk">☐</td><td class="term">워터폴 차트</td><td>시작값에서 <b>증감 요인을 단계별로</b> 보여 최종값 도달 과정 표현. (예: 원가 증감 요인 분해)</td></tr>
+  <tr><td class="chk">☐</td><td class="term">불릿 차트</td><td>막대 하나로 <b>실적 vs 목표 vs 달성 구간</b>을 압축 표현. 게이지의 공간 효율형. KPI에 최적.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">간트 차트</td><td>작업별 <b>기간을 가로 막대</b>로 — 일정 관리용. (예: 발주~입고 리드타임)</td></tr>
+  <tr><td class="chk">☐</td><td class="term">색상 팔레트 3유형 ★</td><td><b>범주형</b>(구분되는 색: 품목별) / <b>순차형</b>(밝→진: 금액 크기) / <b>발산형</b>(양극단 강조, 중간 중립: 증감률 ±). <span class="tip">상황-팔레트 매칭 단골</span></td></tr>
+  <tr><td class="chk">☐</td><td class="term">색 접근성</td><td>색각이상(적록 등) 배려: 색에만 의존하지 않고 <b>모양·라벨·패턴 병행</b>, 충분한 명도 대비.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">대시보드 시선 흐름</td><td>사람의 시선은 <b>좌상→우하</b>(Z·F 패턴). 가장 중요한 지표(KPI 요약)는 좌측 상단에.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">대시보드 3유형</td><td><b>전략</b>(경영진, KPI 요약·저빈도) / <b>분석</b>(원인 탐색·드릴다운) / <b>운영</b>(실시간 모니터링). 의사결정 3계층과 대응.</td></tr>
+  <tr><td class="chk">☐</td><td class="term">인터랙션 요소</td><td><b>필터</b>(범위 좁히기) / <b>하이라이트</b>(연관 강조) / <b>드릴다운</b>(상세 계층 이동: 연→월→일) / <b>툴팁</b>(마우스오버 상세)</td></tr>
+  <tr><td class="chk">☐</td><td class="term">왜곡된 시각화 ★</td><td>대표 유형: <b>축을 0에서 시작하지 않은 막대</b>(차이 과장), 3D 원근 왜곡, 이중축 남용, 체리피킹 구간. <span class="tip">"잘못된 것 고르기" 유형</span></td></tr>
+  <tr><td class="chk">☐</td><td class="term">데이터 스토리텔링</td><td>데이터에 <b>맥락·내러티브</b>를 더해 청중의 이해와 행동을 이끄는 것. 구성: 데이터 + 시각화 + 내러티브.</td></tr>
+</table>
+
+<h2><span class="n">부록</span>복습 노트 — 공부하며 나온 질문 정리</h2>
+<div class="qa">
+  <div class="q">경영정보시각화 시험에 SQL 관련 내용도 나와?</div>
+  <div class="a">나온다 — <b>필기 2과목 '데이터 해석 및 활용'</b>에 데이터베이스 시스템과 SQL이 포함됨. 단, 쿼리 작성이 아니라 <b>개념·기초 문법 이해 수준</b>(SELECT/WHERE의 역할, 조인 종류, 테이블·기본키 구조). 실기(태블로)에는 SQL이 직접 안 나오지만 조인·데이터 결합 개념은 데이터 연결에서 그대로 쓰임. → 국비교육 SQL 수업에서 "조인 종류별 차이"와 "SELECT 구문 각 절의 역할"을 확실히 잡을 것.</div>
+  <div class="d">2026-07-12</div>
+</div>
+
+<footer>경영정보시각화능력 필기 학습장 · Data/필기-용어-학습장.html · 질문할 때마다 복습 노트가 자동 업데이트됩니다</footer>
+
+</body>
+</html>

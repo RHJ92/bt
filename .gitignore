@@ -1,0 +1,8 @@
+# Claude Code 로컬 전용 설정 (PC마다 다름)
+.claude/settings.local.json
+
+# OS/편집기 임시 파일
+Thumbs.db
+Desktop.ini
+*.tmp
+~$*
