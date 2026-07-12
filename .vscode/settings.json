@@ -1,8 +1,0 @@
-{
-  "claudeCode.environmentVariables": [
-    {
-      "name": "CLAUDE_CONFIG_DIR",
-      "value": "C:\\Users\\c\\.claude-rhj"
-    }
-  ]
-}
