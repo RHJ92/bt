@@ -34,6 +34,6 @@
 ## 환경 메모
 
 - 이 저장소는 두 PC에서 같은 구조로 사용: 집 `C:\Users\c\호정\projects\rhj` / 회사 `C:\Users\BLUETREND\호정\projects\rhj`
-- 원격: https://github.com/RHJ92/personal-projects (비공개). 세션 시작 시 `git pull`, 종료 시 커밋+푸시가 기본 습관
+- 원격: https://github.com/RHJ92/bt (비공개). 세션 시작 시 `git pull`, 종료 시 커밋+푸시가 기본 습관
 - 집 PC: Windows 11, git은 Git Bash 경로만 인식 (PowerShell PATH에 없음)
 - 노션·Google Drive·Slack 등은 claude.ai 커넥터로 연결 — 어느 PC든 같은 Claude 계정으로 로그인하면 동일하게 사용 가능
