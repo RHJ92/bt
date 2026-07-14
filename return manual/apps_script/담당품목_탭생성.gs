@@ -1,21 +1,14 @@
 /**
- * 옥된장에프앤비 반품매뉴얼 — 류호정 담당 품목 탭 자동 생성
+ * 옥된장에프앤비 반품매뉴얼 — 류호정 담당 품목 탭 자동 생성 (배치 버전)
  * ------------------------------------------------------------
- * 동작: '우삼겹슬라이스' 탭(팀장님 예시 = 서식 기준)을 복제해
- *       담당 품목 11개 탭을 만들고, 텍스트만 각 품목 내용으로 교체합니다.
- *       탭을 통째로 복제하므로 원본의 셀 병합·색·테두리·열너비가 그대로 유지됩니다.
+ * '우삼겹슬라이스' 탭(서식 기준)을 복제해 담당 11개 품목 탭을 만들고
+ * 텍스트만 각 품목 내용으로 교체합니다. 셀 병합·색·테두리·열너비는 그대로 보존됩니다.
+ * 읽기/쓰기를 한 번에 처리(배치)하여 몇 초 안에 끝납니다.
  *
  * ⚠ 반드시 스프레드시트 "사본"에서 먼저 실행해 확인하세요.
- *    (파일 > 사본 만들기 → 사본에서 실행 → 결과 확인 후 원본 반영)
- *
- * 실행법:
- *   1) 대상 구글시트 열기 → 확장 프로그램 > Apps Script
- *   2) 이 코드 전체를 붙여넣고 저장
- *   3) 상단 함수 목록에서 '담당품목_탭생성' 선택 후 ▶ 실행
- *   4) 최초 실행 시 권한 승인 (본인 계정)
- *
- * 참고: 이 스크립트는 5열(A~E) 구조를 기준으로 합니다.
- *       원본 우삼겹 탭의 열 구조가 다르면 담당자에게 알려주세요.
+ * 실행: 확장 프로그램 > Apps Script → 이 코드 전체 붙여넣기 → 저장 →
+ *       함수 '담당품목_탭생성' 선택 → 실행 → (완료 후 '실행 로그'에 완료 메시지)
+ * 참고: 5열(A~E) 구조 기준. 원본 탭 구조가 다르면 담당자에게 알려주세요.
  */
 
 var TEMPLATE_TAB = '우삼겹슬라이스';
@@ -1159,7 +1152,10 @@ var ITEMS = [
 function 담당품목_탭생성() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var tpl = ss.getSheetByName(TEMPLATE_TAB);
-  if (!tpl) { SpreadsheetApp.getUi().alert('템플릿 탭(' + TEMPLATE_TAB + ')을 찾을 수 없습니다.'); return; }
+  if (!tpl) throw new Error('템플릿 탭을 찾을 수 없습니다: ' + TEMPLATE_TAB);
+
+  var L = analyzeTemplate(tpl);            // 템플릿 구조 1회 분석
+  Logger.log('템플릿 구조: ' + JSON.stringify(L));
 
   var made = [];
   for (var i = 0; i < ITEMS.length; i++) {
@@ -1168,126 +1164,111 @@ function 담당품목_탭생성() {
     if (old) ss.deleteSheet(old);
     var sh = tpl.copyTo(ss);
     sh.setName(item.sheet);
-    fillSheet(sh, item);
+    fillFast(sh, item, L);
     made.push(item.sheet);
   }
-  SpreadsheetApp.getUi().alert('완료: ' + made.length + '개 탭 생성\n' + made.join(', '));
+  SpreadsheetApp.flush();
+  Logger.log('완료: ' + made.length + '개 탭 생성 / ' + made.join(', '));
 }
 
-// ---------- 채우기 ----------
-function fillSheet(sh, item) {
-  // 제목 / 보관조건·단위
+// ---------- 템플릿 구조 분석 (1회) ----------
+function analyzeTemplate(tpl) {
+  var last = tpl.getLastRow();
+  var vals = tpl.getRange(1, 1, last, COLS).getValues();
+  function A(r) { return String(vals[r - 1][0] || '').trim(); }         // 1-based
+  function findRow(pred) { for (var r = 1; r <= last; r++) if (pred(A(r))) return r; return -1; }
+
+  var infoRow = findRow(function (a) { return a === '보관조건'; });
+
+  function single(marker) {
+    var h = findRow(function (a) { return a.indexOf(marker) === 0; });
+    var start = h + 1;
+    var vc = 1;
+    for (var c = 0; c < COLS; c++) { if (String(vals[start - 1][c] || '').trim() !== '') { vc = c + 1; break; } }
+    var cnt = 0;
+    while (start - 1 + cnt < last && String(vals[start - 1 + cnt][vc - 1] || '').trim() !== '') cnt++;
+    var mr = tpl.getRange(start, 1, 1, COLS).getMergedRanges();
+    var span = mr.length ? [mr[0].getColumn(), mr[0].getLastColumn()] : null;
+    return { start: start, count: cnt, valueCol: vc, span: span };
+  }
+
+  // STEP 표: ■ 2 헤더 → 표헤더(+1) → 데이터(+2), 개수는 데이터 시작부터 STEP으로 시작하는 연속 행
+  var h2 = findRow(function (a) { return a.indexOf('■ 2') === 0; });
+  var stepStart = h2 + 2;
+  var stepCnt = 0;
+  while (stepStart - 1 + stepCnt < last && A(stepStart + stepCnt).indexOf('STEP') === 0) stepCnt++;
+
+  // 체크리스트: ■ 3 헤더 → 표헤더(+1) → 데이터(+2), 숫자로 시작하는 연속 행
+  var h3 = findRow(function (a) { return a.indexOf('■ 3') === 0; });
+  var chkStart = h3 + 2;
+  var chkCnt = 0;
+  while (chkStart - 1 + chkCnt < last && /^\d+$/.test(A(chkStart + chkCnt))) chkCnt++;
+
+  return {
+    infoRow: infoRow,
+    sup: single('■ 공급처'),
+    reasons: single('■ 1'),
+    steps: { start: stepStart, count: stepCnt },
+    check: { start: chkStart, count: chkCnt },
+    notes: single('■ 4')
+  };
+}
+
+// ---------- 채우기 (아래 섹션부터 위로: 행 삽입/삭제가 위 섹션 위치에 영향 없음) ----------
+function fillFast(sh, item, L) {
   sh.getRange(1, 1).setValue(item.title);
-  var infoRow = findRowColA(sh, function (a) { return a === '보관조건'; });
-  if (infoRow > 0) {
-    sh.getRange(infoRow, 2).setValue(item.storage);
-    sh.getRange(infoRow, 4).setValue(item.unit);
+  if (L.infoRow > 0) {
+    sh.getRange(L.infoRow, 2).setValue(item.storage);
+    sh.getRange(L.infoRow, 4).setValue(item.unit);
   }
-  // 섹션(위→아래 순서, 매번 마커로 재탐색하므로 행 이동에 안전)
-  fillSingle(sh, '■ 공급처', item.suppliers);
-  fillSingle(sh, '■ 1', item.reasons);
-  fillSteps(sh, item.steps);
-  fillCheck(sh, item.checklist);
-  fillSingle(sh, '■ 4', item.notes);
+  writeSingle(sh, L.notes, item.notes);
+  writeGrid(sh, L.check, item.checklist, null);
+  writeGrid(sh, L.steps, item.steps.map(function (s) { return [s[0], s[1], s[2], '', s[3]]; }), null);
+  writeSingle(sh, L.reasons, item.reasons);
+  writeSingle(sh, L.sup, item.suppliers);
 }
 
-// 단일값 섹션(공급처·반품사유·유의사항): 한 행에 병합된 텍스트 1개
-function fillSingle(sh, marker, values) {
-  var header = findRowColA(sh, function (a) { return a.indexOf(marker) === 0; });
-  if (header < 0) return;
-  var start = header + 1;
-  var col = sectionValueCol(sh, start);
-  var cur = countContent(sh, start, col);
-  adjustRows(sh, start, cur, values.length, true);
-  for (var i = 0; i < values.length; i++) {
-    sh.getRange(start + i, col).setValue(values[i]);
+// 단일값 섹션: 한 행에 텍스트 1개(병합). 전체 폭 배열로 한 번에 기록.
+function writeSingle(sh, S, values) {
+  var n = values.length;
+  adjustRows(sh, S.start, S.count, n, S.span);
+  if (n === 0) return;
+  var grid = [];
+  for (var i = 0; i < n; i++) {
+    var row = ['', '', '', '', ''];
+    row[S.valueCol - 1] = values[i];
+    grid.push(row);
   }
+  sh.getRange(S.start, 1, n, COLS).setValues(grid);
 }
 
-// STEP 표(6행 고정): 라벨/단계명/처리내용/담당
-function fillSteps(sh, steps) {
-  var header = findRowColA(sh, function (a) { return a.indexOf('■ 2') === 0; });
-  if (header < 0) return;
-  var thead = header + 1;               // 표 헤더(STEP/단계명/…)
-  var start = thead + 1;
-  for (var i = 0; i < steps.length; i++) {
-    var r = start + i;
-    sh.getRange(r, 1).setValue(steps[i][0]); // STEP n
-    sh.getRange(r, 2).setValue(steps[i][1]); // 단계명
-    sh.getRange(r, 3).setValue(steps[i][2]); // 처리 내용(병합 C:D 등 → 좌상단)
-    sh.getRange(r, 5).setValue(steps[i][3]); // 담당
-  }
+// 표 섹션(체크리스트·STEP): 5열 그리드 한 번에 기록. rows = 각 [c1..c5].
+function writeGrid(sh, S, rows, span) {
+  var n = rows.length;
+  adjustRows(sh, S.start, S.count, n, span);
+  if (n === 0) return;
+  var grid = rows.map(function (r) {
+    var out = ['', '', '', '', ''];
+    for (var c = 0; c < COLS && c < r.length; c++) out[c] = r[c] == null ? '' : r[c];
+    return out;
+  });
+  sh.getRange(S.start, 1, n, COLS).setValues(grid);
 }
 
-// 체크리스트(가변, 5열)
-function fillCheck(sh, rows) {
-  var header = findRowColA(sh, function (a) { return a.indexOf('■ 3') === 0; });
-  if (header < 0) return;
-  var start = header + 2;               // 표 헤더(No/…) 다음
-  var cur = 0;
-  var acol = colValues(sh, 1);
-  while (start - 1 + cur < acol.length && /^\d+$/.test(acol[start - 1 + cur])) cur++;
-  adjustRows(sh, start, cur, rows.length, false);
-  for (var i = 0; i < rows.length; i++) {
-    for (var c = 0; c < COLS; c++) sh.getRange(start + i, c + 1).setValue(rows[i][c] || '');
-  }
-}
-
-// ---------- 유틸 ----------
-function colValues(sh, col) {
-  var n = sh.getMaxRows();
-  var v = sh.getRange(1, col, n, 1).getValues();
-  var out = [];
-  for (var i = 0; i < v.length; i++) out.push(v[i][0] == null ? '' : String(v[i][0]).trim());
-  return out;
-}
-
-function findRowColA(sh, pred) {
-  var v = colValues(sh, 1);
-  for (var i = 0; i < v.length; i++) if (pred(v[i])) return i + 1;
-  return -1;
-}
-
-// 섹션 값 열 감지: 병합이 있으면 병합 시작열, 없으면 첫 비어있지 않은 열
-function sectionValueCol(sh, row) {
-  var merges = sh.getRange(row, 1, 1, COLS).getMergedRanges();
-  if (merges.length) return merges[0].getColumn();
-  var vals = sh.getRange(row, 1, 1, COLS).getValues()[0];
-  for (var c = 0; c < COLS; c++) if (String(vals[c]).trim() !== '') return c + 1;
-  return 2;
-}
-
-// 값 열 기준으로 연속된 내용 행 수
-function countContent(sh, start, col) {
-  var v = colValues(sh, col);
-  var cnt = 0;
-  while (start - 1 + cnt < v.length && v[start - 1 + cnt] !== '') cnt++;
-  return cnt;
-}
-
-// 행 수 맞추기(삽입 시 서식/병합 복제)
-function adjustRows(sh, start, cur, need, keepMerge) {
+// 행 수 맞추기 (삽입 시 첫 내용 행 서식/병합 복제)
+function adjustRows(sh, start, cur, need, span) {
   if (need > cur) {
     var add = need - cur;
-    sh.insertRowsAfter(start + cur - 1 < start ? start : start + cur - 1, add);
-    var sample = sh.getRange(start, 1, 1, COLS);
-    var firstNew = start + cur;
-    var dest = sh.getRange(firstNew, 1, add, COLS);
-    sample.copyTo(dest, { formatOnly: true });
-    if (keepMerge) reMergeLike(sh, start, firstNew, add);
+    sh.insertRowsAfter(start + cur - 1, add);
+    sh.getRange(start, 1, 1, COLS).copyTo(sh.getRange(start + cur, 1, add, COLS), { formatOnly: true });
+    if (span) {
+      for (var k = 0; k < add; k++) {
+        var r = start + cur + k;
+        sh.getRange(r, 1, 1, COLS).breakApart();
+        sh.getRange(r, span[0], 1, span[1] - span[0] + 1).merge();
+      }
+    }
   } else if (need < cur) {
     sh.deleteRows(start + need, cur - need);
-  }
-}
-
-function reMergeLike(sh, sampleRow, firstNewRow, addCount) {
-  var merges = sh.getRange(sampleRow, 1, 1, COLS).getMergedRanges();
-  for (var k = 0; k < addCount; k++) {
-    var r = firstNewRow + k;
-    sh.getRange(r, 1, 1, COLS).breakApart();
-    for (var m = 0; m < merges.length; m++) {
-      var c1 = merges[m].getColumn(), c2 = merges[m].getLastColumn();
-      sh.getRange(r, c1, 1, c2 - c1 + 1).merge();
-    }
   }
 }
