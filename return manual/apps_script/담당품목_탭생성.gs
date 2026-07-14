@@ -1,18 +1,23 @@
 /**
- * 옥된장에프앤비 반품매뉴얼 — 류호정 담당 품목 탭 자동 생성 (배치 버전)
+ * 옥된장에프앤비 반품매뉴얼 — 류호정 담당 품목 탭 자동 생성 (실구조 6열 반영)
  * ------------------------------------------------------------
  * '우삼겹슬라이스' 탭(서식 기준)을 복제해 담당 11개 품목 탭을 만들고
- * 텍스트만 각 품목 내용으로 교체합니다. 셀 병합·색·테두리·열너비는 그대로 보존됩니다.
- * 읽기/쓰기를 한 번에 처리(배치)하여 몇 초 안에 끝납니다.
+ * 텍스트만 각 품목 내용으로 교체합니다. 병합·색·테두리·열너비 그대로 보존.
+ * ■ 5. 사진 첨부란 섹션은 손대지 않고 그대로 둡니다.
  *
- * ⚠ 반드시 스프레드시트 "사본"에서 먼저 실행해 확인하세요.
- * 실행: 확장 프로그램 > Apps Script → 이 코드 전체 붙여넣기 → 저장 →
- *       함수 '담당품목_탭생성' 선택 → 실행 → (완료 후 '실행 로그'에 완료 메시지)
- * 참고: 5열(A~E) 구조 기준. 원본 탭 구조가 다르면 담당자에게 알려주세요.
+ * 실제 우삼겹 탭 구조 기준:
+ *   - 폭 6열(A~F), 제목=보관조건 바로 윗행
+ *   - 보관조건 값=C열(C:D 병합), 단위 값=F열
+ *   - 공급처/반품사유/유의사항: 각 행 A:F 병합(값 A열)
+ *   - STEP표: A=STEP, B=단계명, C:D=처리내용, E:F=담당
+ *   - 체크리스트: A=No, B=항목, C=확인방법, D:E=판정기준, F=이상시조치
+ *
+ * 실행: 확장 프로그램 > Apps Script → 코드 전체 붙여넣기 → 저장 →
+ *       함수 '담당품목_탭생성' 선택 → 실행 → '실행 로그'에 완료 메시지 확인
  */
 
 var TEMPLATE_TAB = '우삼겹슬라이스';
-var COLS = 5;
+var COLS = 6;
 
 var ITEMS = [
  {
@@ -1154,8 +1159,8 @@ function 담당품목_탭생성() {
   var tpl = ss.getSheetByName(TEMPLATE_TAB);
   if (!tpl) throw new Error('템플릿 탭을 찾을 수 없습니다: ' + TEMPLATE_TAB);
 
-  var L = analyzeTemplate(tpl);            // 템플릿 구조 1회 분석
-  Logger.log('템플릿 구조: ' + JSON.stringify(L));
+  var L = analyzeTemplate(tpl);
+  Logger.log('구조: ' + JSON.stringify(L));
 
   var made = [];
   for (var i = 0; i < ITEMS.length; i++) {
@@ -1175,7 +1180,7 @@ function 담당품목_탭생성() {
 function analyzeTemplate(tpl) {
   var last = tpl.getLastRow();
   var vals = tpl.getRange(1, 1, last, COLS).getValues();
-  function A(r) { return String(vals[r - 1][0] || '').trim(); }         // 1-based
+  function A(r) { return String(vals[r - 1][0] || '').trim(); }
   function findRow(pred) { for (var r = 1; r <= last; r++) if (pred(A(r))) return r; return -1; }
 
   var infoRow = findRow(function (a) { return a === '보관조건'; });
@@ -1188,23 +1193,22 @@ function analyzeTemplate(tpl) {
     var cnt = 0;
     while (start - 1 + cnt < last && String(vals[start - 1 + cnt][vc - 1] || '').trim() !== '') cnt++;
     var mr = tpl.getRange(start, 1, 1, COLS).getMergedRanges();
-    var span = mr.length ? [mr[0].getColumn(), mr[0].getLastColumn()] : null;
+    var span = mr.length ? [mr[0].getColumn(), mr[0].getLastColumn()] : [1, COLS];
     return { start: start, count: cnt, valueCol: vc, span: span };
   }
 
-  // STEP 표: ■ 2 헤더 → 표헤더(+1) → 데이터(+2), 개수는 데이터 시작부터 STEP으로 시작하는 연속 행
   var h2 = findRow(function (a) { return a.indexOf('■ 2') === 0; });
   var stepStart = h2 + 2;
   var stepCnt = 0;
   while (stepStart - 1 + stepCnt < last && A(stepStart + stepCnt).indexOf('STEP') === 0) stepCnt++;
 
-  // 체크리스트: ■ 3 헤더 → 표헤더(+1) → 데이터(+2), 숫자로 시작하는 연속 행
   var h3 = findRow(function (a) { return a.indexOf('■ 3') === 0; });
   var chkStart = h3 + 2;
   var chkCnt = 0;
   while (chkStart - 1 + chkCnt < last && /^\d+$/.test(A(chkStart + chkCnt))) chkCnt++;
 
   return {
+    titleRow: infoRow - 1,
     infoRow: infoRow,
     sup: single('■ 공급처'),
     reasons: single('■ 1'),
@@ -1214,58 +1218,57 @@ function analyzeTemplate(tpl) {
   };
 }
 
-// ---------- 채우기 (아래 섹션부터 위로: 행 삽입/삭제가 위 섹션 위치에 영향 없음) ----------
+// ---------- 채우기 (아래 섹션부터 위로) ----------
 function fillFast(sh, item, L) {
-  sh.getRange(1, 1).setValue(item.title);
-  if (L.infoRow > 0) {
-    sh.getRange(L.infoRow, 2).setValue(item.storage);
-    sh.getRange(L.infoRow, 4).setValue(item.unit);
-  }
+  sh.getRange(L.titleRow, 1).setValue(item.title);
+  sh.getRange(L.infoRow, 3).setValue(item.storage); // C:D 병합 좌상단
+  sh.getRange(L.infoRow, 6).setValue(item.unit);    // F열
+
   writeSingle(sh, L.notes, item.notes);
-  writeGrid(sh, L.check, item.checklist, null);
-  writeGrid(sh, L.steps, item.steps.map(function (s) { return [s[0], s[1], s[2], '', s[3]]; }), null);
+  writeGrid(sh, L.check,
+    item.checklist.map(function (r) { return [r[0], r[1], r[2], r[3], '', r[4]]; }),
+    [[4, 5]]);                                       // 판정기준 D:E
+  writeGrid(sh, L.steps,
+    item.steps.map(function (s) { return [s[0], s[1], s[2], '', s[3], '']; }),
+    [[3, 4], [5, 6]]);                               // 처리내용 C:D, 담당 E:F
   writeSingle(sh, L.reasons, item.reasons);
   writeSingle(sh, L.sup, item.suppliers);
 }
 
-// 단일값 섹션: 한 행에 텍스트 1개(병합). 전체 폭 배열로 한 번에 기록.
+function newRow() { var a = []; for (var c = 0; c < COLS; c++) a.push(''); return a; }
+
+// 단일값 섹션(공급처·반품사유·유의사항): A:F 병합, 값 A열
 function writeSingle(sh, S, values) {
-  var n = values.length;
-  adjustRows(sh, S.start, S.count, n, S.span);
-  if (n === 0) return;
-  var grid = [];
-  for (var i = 0; i < n; i++) {
-    var row = ['', '', '', '', ''];
-    row[S.valueCol - 1] = values[i];
-    grid.push(row);
-  }
-  sh.getRange(S.start, 1, n, COLS).setValues(grid);
+  adjustRows(sh, S.start, S.count, values.length, [S.span]);
+  if (!values.length) return;
+  var grid = values.map(function (v) { var row = newRow(); row[S.valueCol - 1] = v; return row; });
+  sh.getRange(S.start, 1, values.length, COLS).setValues(grid);
 }
 
-// 표 섹션(체크리스트·STEP): 5열 그리드 한 번에 기록. rows = 각 [c1..c5].
-function writeGrid(sh, S, rows, span) {
-  var n = rows.length;
-  adjustRows(sh, S.start, S.count, n, span);
-  if (n === 0) return;
+// 표 섹션(체크리스트·STEP): 6열 그리드 + 삽입 행에 병합 재적용
+function writeGrid(sh, S, rows, mergeSpans) {
+  adjustRows(sh, S.start, S.count, rows.length, mergeSpans);
+  if (!rows.length) return;
   var grid = rows.map(function (r) {
-    var out = ['', '', '', '', ''];
-    for (var c = 0; c < COLS && c < r.length; c++) out[c] = r[c] == null ? '' : r[c];
-    return out;
+    var row = newRow();
+    for (var c = 0; c < COLS && c < r.length; c++) row[c] = r[c] == null ? '' : r[c];
+    return row;
   });
-  sh.getRange(S.start, 1, n, COLS).setValues(grid);
+  sh.getRange(S.start, 1, rows.length, COLS).setValues(grid);
 }
 
-// 행 수 맞추기 (삽입 시 첫 내용 행 서식/병합 복제)
-function adjustRows(sh, start, cur, need, span) {
+// 행 수 맞추기 (삽입 시 첫 내용 행 서식 복제 + 병합 재적용)
+function adjustRows(sh, start, cur, need, mergeSpans) {
   if (need > cur) {
     var add = need - cur;
     sh.insertRowsAfter(start + cur - 1, add);
     sh.getRange(start, 1, 1, COLS).copyTo(sh.getRange(start + cur, 1, add, COLS), { formatOnly: true });
-    if (span) {
-      for (var k = 0; k < add; k++) {
-        var r = start + cur + k;
-        sh.getRange(r, 1, 1, COLS).breakApart();
-        sh.getRange(r, span[0], 1, span[1] - span[0] + 1).merge();
+    for (var k = 0; k < add; k++) {
+      var r = start + cur + k;
+      sh.getRange(r, 1, 1, COLS).breakApart();
+      for (var m = 0; m < mergeSpans.length; m++) {
+        var s = mergeSpans[m];
+        sh.getRange(r, s[0], 1, s[1] - s[0] + 1).merge();
       }
     }
   } else if (need < cur) {
