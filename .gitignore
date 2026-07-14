@@ -6,3 +6,6 @@ Thumbs.db
 Desktop.ini
 *.tmp
 ~$*
+
+# 단톡방 대화 원본 (동료 개인정보 포함 — 깃에 올리지 않음)
+return manual/raw/
