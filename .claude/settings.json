@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git pull *)",
+      "PowerShell(gh auth status 2>&1)",
+      "PowerShell(gh --version)",
+      "Bash(git ls-remote *)",
+      "Bash(echo \"exit code: $?\")"
+    ]
+  }
+}
