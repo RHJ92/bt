@@ -16,6 +16,7 @@
 | `agent_livestock_products/` | 축산품 구매·공급 관리 에이전트 거점 | **작업 전 그 안의 CLAUDE.md 필독** (노션 DB ID, 주간 루틴, 판단 기준 전부) |
 | `return manual/` | 프랜차이즈 가맹점 대상 상품별 반품 매뉴얼 (구글시트 초안 작업용) | 원본은 구글시트, 이 폴더는 시트에 옮겨 붙일 초안을 로컬에서 작성하는 용도. 구조: drafts(초안)/output(엑셀)/reference(근거자료)/raw(대화 원본, 깃 미추적) |
 | `quality complaint/` | 가맹점 품질 클레임 접수·답변 관리 | **작업 전 그 안의 CLAUDE.md 필독** (노션 QC DB, 안내문 작성 원칙). 구조: claims(건별 MD)/captures(카톡 캡처)/reference(근거자료) |
+| `writing/` | 카톡·메일 등 일상 업무 커뮤니케이션 맞춤법·표현 교정 | **작업 전 그 안의 CLAUDE.md 필독** (교정 답변 형식, 말투 보존 원칙). 구조: drafts(건별 기록)/style(말투 프로파일·오류 사전) |
 
 ## 진행 중인 큰 프로젝트: AI 에이전트 독학
 
