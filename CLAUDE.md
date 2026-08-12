@@ -16,14 +16,39 @@
 | `agent_livestock_products/` | 축산품 구매·공급 관리 에이전트 거점 | **작업 전 그 안의 CLAUDE.md 필독** (노션 DB ID, 주간 루틴, 판단 기준 전부) |
 | `return manual/` | 프랜차이즈 가맹점 대상 상품별 반품 매뉴얼 (구글시트 초안 작업용) | 원본은 구글시트, 이 폴더는 시트에 옮겨 붙일 초안을 로컬에서 작성하는 용도. 구조: drafts(초안)/output(엑셀)/reference(근거자료)/raw(대화 원본, 깃 미추적) |
 | `quality complaint/` | 가맹점 품질 클레임 접수·답변 관리 | **작업 전 그 안의 CLAUDE.md 필독** (노션 QC DB, 안내문 작성 원칙). 구조: claims(건별 MD)/captures(카톡 캡처)/reference(근거자료) |
+| `contracts/` | 매입처 물품공급계약·부속 합의서, 체결 전 협의(수정 요청) 서면 | **작업 전 그 안의 CLAUDE.md 필독** (위험 조항 검토 원칙, 요청 문구 작성법). 구조: active(체결본)/drafts(협의 서면 초안)/reference(근거자료) |
+| `settlements/` | 정산서 검토 — 수취형(IP 사용료 등)·지급형(매입 대금) 양방향 | **작업 전 그 안의 CLAUDE.md + 해당 업체 README 필독** (검토 6단계, 단가 검증 우선·지급형은 마진까지). 구조: `업체명/`(메리고라운드, 명화주방) 아래 reviews(건별 검토서)/statements(상대 원본)/reference(마진표·자사 자료) |
 | `writing/` | 카톡·메일 등 일상 업무 커뮤니케이션 맞춤법·표현 교정 | **작업 전 그 안의 CLAUDE.md 필독** (교정 답변 형식, 말투 보존 원칙). 구조: drafts(건별 기록)/style(말투 프로파일·오류 사전) |
+| `meeting minutes/` | 클로바노트 STT 녹취 → 노션 「회의 정리」 DB 회의록 작성 | **작업 전 그 안의 CLAUDE.md 필독** (드라이브·노션 세팅, 판단 기준, 형식). 구조: drafts(건별 초안) |
+| `notice/` | 가맹점 안내문(공급가 조정·배송 휴무 등) 노션 초안 작성 | **작업 전 그 안의 CLAUDE.md 필독** (브랜드별 발행 규칙이 핵심). 폴더에는 과거 발행 원본 .hwp가 톤 참고용으로 보관 |
+| `holiday_delivery_schedule/` | 연휴·공휴일 택배 배송일정표 (마켓봄 공지 첨부용 엑셀) | **작업 전 그 안의 README 필독** (표 색 규칙, 집하 불가=발송 불가 환산 원칙) |
+| `bidding/` | 매입처·물류사 비딩 — 견적 비교, MOQ·소진기간 분석, 협상 근거 자료 | **업체별 폴더**(리우/만두/모전식품) 각각 README 보유. 노션 「비딩」 DB와 연동 |
+| `inventory_management/` | 외부 창고 보관 자사 재고(비축 원물·기물)의 수량·평가액·보관료 관리 | **작업 전 그 안의 README 필독.** 창고사 월말 정산서와 자사 재고현황 대사 기록. 구조: octopus(자숙문어)/tableware(식기류·쇼핑백) |
+| `financing/` | 재무팀 대상 자금검토 요청 자료 (비축 매입 자금 등) | 건별 MD + 근거 엑셀. 별도 CLAUDE.md 없음 |
+| `magazine/` | 점주 대상 옥된장 매거진에 구매팀이 쓰는 상품 이야기 작성 기준 | 노션 「매거진 양식」 DB에 작성. 대표님 글과 서식·말투 결 맞추는 게 목적 — `매거진 작업 가이드.md` 참고 |
+| `memo/` | 어느 거점에도 안 들어가는 참고 자료 | `BT_운영구조.md`(지배구조·브랜드 포트폴리오 — **BT=지주사와 가맹본부는 마진 귀속처가 다르니 구분해서 읽을 것**), `제때_물류사_비딩/`(이관 검토) |
+
+## 반복 루틴은 스킬로 (`.claude/skills/`)
+
+절차가 정립된 작업은 슬래시 커맨드로 부른다. 각 거점 CLAUDE.md는 **배경·이력·진행 현황**이 원본이고, 스킬은 **실행 절차**를 담는다.
+
+| 커맨드 | 하는 일 |
+|---|---|
+| `/weekly-survey` | 축산품 주간 시세 실측 → 시세 원장 기록 → 시황 카드 초안. 매주 수요일 |
+| `/meeting-notes` | 드라이브 STT 녹취 → 노션 「회의 정리」 DB 회의록 |
+| `/settlement-review` | 정산서 검토 6단계 (수취형·지급형) |
+| `/contract-review` | 계약서 위험 조항 검토 + 수정 요청 서면 |
+| `/notice-draft` | 가맹점 안내문 — 브랜드별로 나눠 노션 초안 작성 |
+| `/claim-response` | 품질 클레임 답변 + 노션 QC DB 기록 |
+| `/proofread` | 카톡·메일 맞춤법·표현 교정 (말투 보존) |
 
 ## 진행 중인 큰 프로젝트: AI 에이전트 독학
 
 패스트캠퍼스 커리큘럼(바이브코딩 → OpenClaw×Slack 슈퍼팀 → 노하우 이식 → 자율 운영)을 강의 없이 Claude와 함께 직접 재현하는 중.
 
 - 1단계(바이브코딩 기초): 완료 — 축산품 노션 대시보드 구축이 실습 결과물
-- 다음: 축산품 주간 루틴을 OpenClaw로 자동화 (2단계)
+- 2단계(주간 루틴 자동화): 완료 (2026-08-06) — 매주 수 11:00 `/weekly-survey` 무인 실행이 회사 PC 작업 스케줄러에 등록됨. 노션 초안까지 자동 기록, 결과는 Windows 알림. 설계·운영은 `agent_livestock_products/automation/README.md`
+- 다음: 월간 공급가 권장안(25일)도 같은 방식으로 자동화할지 검토 → 이후 3단계(노하우 이식)
 
 ## 축산품 핵심 요약 (상세는 agent_livestock_products/CLAUDE.md)
 
@@ -33,7 +58,20 @@
 
 ## 환경 메모
 
-- 이 저장소는 두 PC에서 같은 구조로 사용: 집 `C:\Users\c\호정\projects\rhj` / 회사 `C:\Users\BLUETREND\호정\projects\rhj`
+- 이 저장소는 두 PC에서 같은 구조로 사용
+  - 회사: `C:\Users\BLUETREND\류호정\bt` (2026-08-06 확인)
+  - 집: 미확인 — 집 PC에서 작업할 때 실제 경로로 이 줄을 고칠 것
 - 원격: https://github.com/RHJ92/bt (비공개). 세션 시작 시 `git pull`, 종료 시 커밋+푸시가 기본 습관
 - 집 PC: Windows 11, git은 Git Bash 경로만 인식 (PowerShell PATH에 없음)
-- 노션·Google Drive·Slack 등은 claude.ai 커넥터로 연결 — 어느 PC든 같은 Claude 계정으로 로그인하면 동일하게 사용 가능
+
+**도구 연결 (2026-08-06 전면 개편)**
+
+| 대상 | 방식 | 비고 |
+|---|---|---|
+| claude CLI | `C:\Users\BLUETREND\.local\bin\claude.exe`, PATH 등록됨 | 확장 번들 실행파일은 버전 폴더명이 바뀌므로 쓰지 않는다 |
+| 노션 | 로컬 MCP `notion` — 저장소 루트 `.mcp.json` + `NOTION_API_TOKEN` 사용자 환경변수 | **claude.ai 커넥터 아님.** 계정 공유 때문에 커넥터가 계속 덮여서 옮김. 만료·재인증 없음 |
+| 구글 드라이브 | 로컬 MCP `gdrive` — `C:\Users\BLUETREND\.gdrive-mcp\` (저장소 밖, 깃 미추적) | 읽기 `credentials.json` / 쓰기 `credentials_rw.json` |
+| 문서 처리 | 플러그인 `document-skills` (xlsx·docx·pptx·pdf), user 스코프 | 로컬 의존: openpyxl·pandas·markitdown·pypdf 등 + LibreOffice(엑셀 수식 재계산) + pandoc(워드 읽기) |
+
+- **PC에 귀속되는 설정이라 팀원과 공유되지 않는다.** 계정에 붙는 건 claude.ai 커넥터뿐이고, 그건 계정을 공유해서 서로 덮인다
+- **집 PC에서 쓰려면** `NOTION_API_TOKEN` 환경변수 등록 + CLI 설치 + `document-skills` 재설치가 각각 필요하다. `.mcp.json`은 깃으로 따라가지만 토큰은 안 들어간다
