@@ -140,25 +140,73 @@ $exit = $LASTEXITCODE
 $elapsed = [int]((Get-Date) - $started).TotalMinutes
 Write-Log ("claude 종료 (exit=" + $exit + ", " + $elapsed + "분 소요)")
 
-# ---------------------------------------------------------------- 결과 알림
-$status = $null
-$logLines = Get-Content -Path $logFile -Encoding utf8
-for ($i = $logLines.Count - 1; $i -ge 0; $i--) {
-    if ($logLines[$i] -match '^\s*STATUS:\s*(.+)$') { $status = $Matches[1].Trim(); break }
+# ---------------------------------------------------------------- 결과 검증
+# 실행 세션이 마지막 STATUS 줄을 빠뜨리는 일이 잦다 (2026-08-12·08-19 실제 실행 두 번 다 누락 —
+# 작업은 정상 완료했는데 알림만 "확인 필요"로 떴다). 모델의 자기보고에 기대지 말고
+# 노션을 직접 조회해 오늘 기록이 실제로 남았는지 확인하고, 그 결과로 알림을 만든다.
+
+function Get-StatusLine([string[]]$lines) {
+    for ($i = $lines.Count - 1; $i -ge 0; $i--) {
+        if ($lines[$i] -match '^\s*STATUS:\s*(.+)$') { return $Matches[1].Trim() }
+    }
+    return $null
 }
 
-if ($exit -eq 0 -and $status) {
-    Show-Toast '축산품 주간 실측 - 완료' ($status + " (" + $elapsed + "분)")
-    Write-Log '결과: 성공'
-} elseif ($exit -eq 0) {
-    # STATUS 줄이 없으면 끝까지 못 갔을 가능성이 있으므로 성공으로 단정하지 않는다.
-    Show-Toast '축산품 주간 실측 - 확인 필요' ("정상 종료했지만 완료 표시를 찾지 못했습니다. 로그 확인: " + (Split-Path $logFile -Leaf))
-    Write-Log '결과: 종료코드 0이나 STATUS 줄 없음'
-} else {
+$logLines  = Get-Content -Path $logFile -Encoding utf8
+$selfClaim = Get-StatusLine $logLines   # 실행 세션의 자기보고 (있으면 보조로 씀)
+$verified  = $null
+
+if ((-not $DryRun) -and $exit -eq 0) {
+    $today = Get-Date -Format 'yyyy-MM-dd'
+    $verifyPrompt = @"
+무인 실행 결과 검증이다. 노션을 조회만 하고 어떤 것도 생성·수정·삭제하지 마라.
+
+1. 시세 원장(data source b36d6ade-2001-4a80-96e2-4d4aee9f4c47)에서 「조사일」이 $today 인 행의 개수
+2. 주차별 시황 카드(data source 5047f9a7-7f14-40e4-b8ac-ad3f04dba5ff)에서 「기준일」이 $today 인 카드 개수와, 그중 「검토 상태」가 초안인 개수
+
+정확히 아래 한 줄만 출력하고 끝낸다. 설명·인사·표 금지.
+STATUS: 원장 N행 · 카드 N장(초안 N)
+조회에 실패했으면 대신 이 한 줄만: STATUS: 검증실패
+"@
+    Write-Log '노션 기록 검증 시작'
+    $verifyOut = & $claudeExe -p $verifyPrompt --mcp-config '.mcp.json' --strict-mcp-config --allowedTools 'mcp__notion' 2>&1 |
+        ForEach-Object { if ($_ -is [System.Management.Automation.ErrorRecord]) { $_.ToString() } else { $_ } }
+    $verifyText = ($verifyOut -join "`n")
+    Add-Content -Path $logFile -Value ("[검증] " + $verifyText) -Encoding utf8
+    $verified = Get-StatusLine ($verifyText -split "`r?`n")
+    Write-Log ("검증 결과: " + $(if ($verified) { $verified } else { '(STATUS 줄 없음)' }))
+}
+
+# ---------------------------------------------------------------- 결과 알림
+$took = " (" + $elapsed + "분)"
+
+if ($exit -ne 0) {
     $tail = ($logLines | Select-Object -Last 3) -join ' / '
     if ($tail.Length -gt 180) { $tail = $tail.Substring(0, 180) + '...' }
     Show-Toast '축산품 주간 실측 - 실패' ("종료코드 " + $exit + " · " + $tail)
     Write-Log '결과: 실패'
+}
+elseif ($DryRun) {
+    if ($selfClaim) { Show-Toast '축산품 주간 실측 - 드라이런 완료' $selfClaim; Write-Log '결과: 드라이런 성공' }
+    else { Show-Toast '축산품 주간 실측 - 드라이런 확인 필요' ('로그 확인: ' + (Split-Path $logFile -Leaf)); Write-Log '결과: 드라이런 STATUS 없음' }
+}
+elseif ($verified -and $verified -match '원장\s*(\d+)\s*행') {
+    # 노션 조회로 확인된 값이 알림의 근거다.
+    if ([int]$Matches[1] -gt 0) {
+        Show-Toast '축산품 주간 실측 - 완료' ($verified + $took)
+        Write-Log '결과: 성공 (노션 기록 확인됨)'
+    } else {
+        Show-Toast '축산품 주간 실측 - 확인 필요' ('정상 종료했으나 오늘 날짜로 노션에 기록된 행이 없습니다. 로그: ' + (Split-Path $logFile -Leaf))
+        Write-Log '결과: 실패 의심 (오늘 기록 0행)'
+    }
+}
+elseif ($selfClaim) {
+    Show-Toast '축산품 주간 실측 - 완료(검증 미완)' ($selfClaim + $took)
+    Write-Log '결과: 실행 자기보고만 있음, 노션 검증 실패'
+}
+else {
+    Show-Toast '축산품 주간 실측 - 확인 필요' ('정상 종료했지만 결과를 확인하지 못했습니다. 로그: ' + (Split-Path $logFile -Leaf))
+    Write-Log '결과: 종료코드 0이나 STATUS·검증 모두 없음'
 }
 
 Write-Log ("로그: " + $logFile)
