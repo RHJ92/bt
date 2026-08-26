@@ -19,6 +19,9 @@ memo/제때_물류사_비딩/raw_단톡방/
 # 지출결의서 원본 CSV (전 직원 계좌번호·개인경비 포함 — 깃에 올리지 않음)
 memo/지출결의서_자동입력/raw/
 
+# 가맹점 로그인 자격증명(ID/PW) 포함 — 깃에 올리지 않음
+bidding/리우/*로그인*.xlsx
+
 # 회의록 자동정리 (로컬 산출물)
 meeting minutes/automation/logs/
 meeting minutes/automation/staging/
