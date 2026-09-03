@@ -99,4 +99,4 @@
 - 정산 기준 검토: [260805_석문어테이블웨어_정산기준_검토.md](reviews/260805_석문어테이블웨어_정산기준_검토.md)
 - 마진표: [석문어테이블웨어_구매가판매가_마진.xlsx](reference/석문어테이블웨어_구매가판매가_마진.xlsx) — 품목별 구매가·판매가·마진 / 정산기준 2개 시트
 - 판매가 원본: [260805_마켓봄_단가일괄수정_가맹점공급가.xls](reference/260805_마켓봄_단가일괄수정_가맹점공급가.xls)
-- 연관 거점: [inventory_management/tableware/](../../inventory_management/tableware/) (식기류 재고·입출고 관리)
+- 연관 거점: [inventory_management/](../../inventory_management/) — 재고관리는 `stock/통합_재고관리(로트기반).xlsx`, 삼보 창고 대사는 `warehouse/sambo_식기류/`
