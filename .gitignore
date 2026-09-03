@@ -22,6 +22,9 @@ memo/지출결의서_자동입력/raw/
 # 가맹점 로그인 자격증명(ID/PW) 포함 — 깃에 올리지 않음
 bidding/리우/*로그인*.xlsx
 
+# 자사 법인 사업자등록증·통장 사본 (인증서류·계좌 실물 이미지 — 깃에 올리지 않음)
+사업자등록증,통장사본/
+
 # 회의록 자동정리 (로컬 산출물)
 meeting minutes/automation/logs/
 meeting minutes/automation/staging/
