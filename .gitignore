@@ -29,3 +29,13 @@ bidding/리우/*로그인*.xlsx
 meeting minutes/automation/logs/
 meeting minutes/automation/staging/
 meeting minutes/automation/state.json
+
+# 에이전트 자동화 (agents/) — 토큰·계정정보·실행 로그·상태 파일은 깃에 올리지 않음
+agents/shared/config/
+agents/**/logs/
+agents/**/state/
+agents/**/tests/fixtures/*.eml
+agents/inventory_sync/output/
+
+# 계정·비밀번호 보관 — 절대 커밋 금지
+계정보관/

@@ -5,7 +5,10 @@
       "PowerShell(gh auth status 2>&1)",
       "PowerShell(gh --version)",
       "Bash(git ls-remote *)",
-      "Bash(echo \"exit code: $?\")"
+      "Bash(echo \"exit code: $?\")",
+      "ClaudeInChromeDomain(search.shopping.naver.com)",
+      "ClaudeInChromeDomain(www.coupang.com)",
+      "ClaudeInChromeDomain(www.11st.co.kr)"
     ]
   }
 }

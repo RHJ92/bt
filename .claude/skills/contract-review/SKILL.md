@@ -9,11 +9,7 @@ description: 매입처·물류사 물품공급계약서를 받았을 때 위험 
 
 ## 0. 자료 배치
 
-| 폴더 | 내용 |
-|---|---|
-| `contracts/active/` | 체결본 원본 PDF·HWP (`YYMMDD_계약종류_업체(브랜드).pdf`) |
-| `contracts/drafts/` | 체결 전 협의·수정 요청 서면 초안 (`YYMMDD_업체_주제.md`) — 검토 근거 + 최종 발송본 |
-| `contracts/reference/` | 조항 해설, 업체 회신, 타사 계약 비교 |
+계약 1건 = 폴더 1개: `contracts/업체_계약명/` 안에 초안·상대 수정본·최종본·체결본과 README(경과·수정 내역), 수정 요청 서면 `YYMMDD_업체_주제.md`를 함께 둔다. 진행 절차·전자서명은 `contracts/CLAUDE.md`.
 
 PDF는 `document-skills:pdf`로 전문을 읽는다. HWP는 텍스트 추출이 안 되면 사용자에게 변환본을 요청한다.
 
@@ -51,7 +47,7 @@ PDF는 `document-skills:pdf`로 전문을 읽는다. HWP는 텍스트 추출이 
 
 ## 4. 서면 구성
 
-`contracts/drafts/YYMMDD_업체_주제.md` 에 쓴다. 담을 것:
+`contracts/업체_계약명/YYMMDD_업체_주제.md` 에 쓴다. 담을 것:
 
 1. **검토 근거** — 어느 조항이 왜 위험한지, 터지는 시나리오와 예상 금액 (내부용, 발송 안 함)
 2. **발송본** — 상대에게 보낼 문구 전문. 그대로 복사해 메일에 붙일 수 있게
@@ -67,6 +63,6 @@ PDF는 `document-skills:pdf`로 전문을 읽는다. HWP는 텍스트 추출이 
 ## 6. 마무리
 
 1. 서면 발송 후 **회신·최종 반영 결과를 해당 draft MD 하단에 이어 기록**한다
-2. `contracts/CLAUDE.md`의 "진행 중" 표를 갱신한다
-3. 체결되면 원본을 `active/`에 `YYMMDD_계약종류_업체(브랜드).pdf` 로 넣는다
+2. `contracts/CLAUDE.md`의 "진행 현황" 표와 건별 README를 갱신한다
+3. 체결되면 체결본 PDF를 해당 건 폴더에 `…_체결본.pdf` 로 넣는다
 4. 비딩·MOQ 분석 자료가 근거가 됐다면 `contracts/CLAUDE.md` 연관 자료에 링크를 남긴다
