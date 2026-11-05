@@ -1,0 +1,18 @@
+# 슬랙 앱 만들기 → "From a manifest" → 이 내용 붙여넣기
+# 알림(chat:write)만 먼저. 승인 버튼(Socket Mode)은 5단계에서 이 앱에 추가
+display_information:
+  name: 업무비서
+  description: 구매팀 자동화 알림 (발주 자동입력·제때 일일 조회·Claude 세션 완료)
+features:
+  bot_user:
+    display_name: 업무비서
+    always_online: true
+oauth_config:
+  scopes:
+    bot:
+      - chat:write
+      - channels:read
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구매팀 업무</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--line:#e3e6ea;--text:#1d2329;--sub:#68717c;--brand:#245a8d;--warn:#b3261e;--warnbg:#fdecea}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 "맑은 고딕","Malgun Gothic",system-ui,sans-serif;min-height:100vh}
+.top{position:sticky;top:0;z-index:5;height:52px;background:var(--brand);color:#fff;display:flex;align-items:center;gap:22px;padding:0 20px}
+.top b{font-size:17px}
+#big{display:flex;gap:4px;align-self:stretch;align-items:flex-end}
+#big button{border:0;background:none;color:#dfe9f2;font:inherit;font-weight:600;padding:10px 18px;border-radius:8px 8px 0 0;cursor:pointer}
+#big button.on{background:var(--bg);color:var(--brand)}
+.layout{display:flex}
+aside{width:210px;flex:none;background:var(--card);border-right:1px solid var(--line);padding:16px 10px;position:sticky;top:52px;height:calc(100vh - 52px);overflow:auto}
+h1{font-size:17px;margin:0 8px 2px}
+.sub{color:var(--sub);font-size:12px}
+.grp{margin:14px 8px 4px;color:var(--sub);font-size:12px}
+aside button{display:block;width:100%;text-align:left;border:0;background:none;padding:6px 10px;border-radius:6px;font:inherit;cursor:pointer;color:var(--text)}
+aside button.on{background:var(--brand);color:#fff}
+aside button:hover:not(.on){background:#eef1f4}
+main{flex:1;min-width:0;padding:18px 22px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px;margin-bottom:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px}
+.kpi b{display:block;font-size:19px}
+.bar{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
+input,select,.btn{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--text)}
+input{min-width:240px}
+.btn{cursor:pointer}
+.tbl{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:auto;max-height:calc(100vh - 265px)}
+table{border-collapse:collapse;width:100%;white-space:nowrap}
+th{position:sticky;top:0;background:#eef1f4;text-align:left;font-weight:600;cursor:pointer;z-index:1}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line)}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+tr.bad td{background:var(--warnbg)}
+.notice{background:#fff8e1;border:1px solid #f0dca0;border-radius:8px;padding:9px 14px;margin-bottom:12px;font-size:13px}
+.sum{margin-bottom:12px}
+.err{color:var(--warn)}
+td{max-width:420px;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:760px){.layout{display:block}aside{position:static;width:auto;height:auto}}
+</style>
+</head>
+<body>
+<header class="top"><b>구매팀</b><div id="big"></div></header>
+<div class="layout">
+<aside>
+  <div class="sub" style="margin:0 8px" id="at">불러오는 중…</div>
+  <div id="nav"></div>
+  <div style="margin:14px 8px"><button class="btn" id="refresh" style="width:100%;text-align:center">새로고침</button></div>
+</aside>
+<main>
+  <div class="kpis" id="kpis"></div>
+  <div class="notice" id="notice" hidden></div>
+  <div class="sum" id="sum"></div>
+  <div class="bar" id="bar"></div>
+  <div class="tbl"><table id="t"></table></div>
+</main>
+</div>
+<script>
+const GROUPS={'확인':['이상 감지','유니폼 선분출'],'재고':['재고 현황','재고자산(원가품목)','브랜드 합계','로트 마스터','입출고 원장'],'기준 정보':['품목 마스터'],'월말 마감':['월말 대사(로트)','월말 대사(유니폼 실사)','마켓봄 월마감','월마감 요약','축·수산·기타','재무팀 명세'],'기록':['아카이브']};
+const NOTE={'이상 감지':'이 화면은 새로고침할 때 다시 계산합니다. 슬랙 알림은 보내지 않습니다.','유니폼 선분출':'영업팀 신청 시트를 읽어 옵니다. 입력·수정은 신청 시트에서 합니다.','재고 현황':'현재고는 원장 입력분 기준이에요. 출고완료 주문은 월~금 9:10에 자동 입력됩니다.','월말 대사(로트)':'기준일은 시트 값이에요. 기준일 변경은 구글시트에서 합니다.','재무팀 명세':'마감월을 고르면 사업자별 요약을 계산합니다. 시트와 같은 기준이에요.'};
+let D=null,tab='이상 감지',q='',flt='',sort=null,dir=1,month='';
+const fmt=n=>typeof n==='number'?n.toLocaleString('ko-KR',{maximumFractionDigits:2}):(n??'');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const MENU={'재고 관리':GROUPS};  // 큰 탭 추가는 여기에 한 줄
+let big='재고 관리';
+function nav(){document.getElementById('big').innerHTML=Object.keys(MENU).map(k=>`<button class="${k==big?'on':''}">${k}</button>`).join('');
+ document.getElementById('nav').innerHTML=Object.entries(MENU[big]).map(([g,l])=>`<div class="grp">${g}</div>`+l.map(k=>`<button class="${k==tab?'on':''}" data-k="${k}">${k}</button>`).join('')).join('');
+ document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.k;q='';flt='';sort=null;month='';render()})}
+const idx=(T,re)=>T.cols.findIndex(c=>re.test(c));
+function current(){const T=D.tabs[tab];let r=T.rows;
+ const mi=idx(T,/^마감월$/);if(mi>=0&&month)r=r.filter(x=>String(x[mi])===month);
+ const fi=filterCol(T);if(fi>=0&&flt)r=r.filter(x=>String(x[fi])===flt);
+ if(q){const s=q.toLowerCase();r=r.filter(x=>x.some(v=>String(v).toLowerCase().includes(s)))}
+ if(sort!==null)r=[...r].sort((a,b)=>(a[sort]>b[sort]?1:a[sort]<b[sort]?-1:0)*dir);
+ return r}
+function filterCol(T){for(const re of [/^창고$/,/^카테고리$/,/^사업자$/,/^구분$/]){const i=idx(T,re);if(i>=0)return i}return -1}
+function kpis(){const L=D.tabs['로트 마스터'],ai=idx(L,/자산/),S=D.tabs['재고 현황'],qi=idx(S,/^현재고$/);
+ const sum=L.rows.reduce((a,x)=>a+(+x[ai]||0),0),neg=S.rows.filter(x=>+x[qi]<0).length;
+ document.getElementById('kpis').innerHTML=[['마켓봄 재고자산',fmt(Math.round(sum))+'원'],['품목',fmt(S.rows.length)],['로트',fmt(L.rows.length)],['원장',fmt(D.tabs['입출고 원장'].rows.length)+'행'],['이상 감지',fmt(D.tabs['이상 감지'].rows.length)+'건'],['마이너스 품목',fmt(neg)]].map(([a,b])=>`<div class="kpi"><span class="sub">${a}</span><b>${b}</b></div>`).join('')}
+function summary(){const el=document.getElementById('sum');if(tab!=='재무팀 명세'||!month){el.innerHTML='';return}
+ const T=D.tabs[tab],m=idx(T,/^마감월$/),b=idx(T,/^사업자$/),o=idx(T,/^원천$/),x=idx(T,/과세구분/),v=idx(T,/재고자산 \(공급가액\)/),w=idx(T,/재고자산 \(VAT/);
+ const g={};T.rows.filter(r=>String(r[m])===month).forEach(r=>{const k=r[b];g[k]=g[k]||{mk:0,etc:0,tax:0,free:0,sum:0,vat:0,n:0};const a=+r[v]||0;g[k][r[o]==='마켓봄'?'mk':'etc']+=a;g[k][r[x]==='과세'?'tax':'free']+=a;g[k].sum+=a;g[k].vat+=+r[w]||0;g[k].n++});
+ const keys=Object.keys(g),t={mk:0,etc:0,tax:0,free:0,sum:0,vat:0,n:0};keys.forEach(k=>Object.keys(t).forEach(c=>t[c]+=g[k][c]));
+ const row=(k,o)=>`<tr><td>${esc(k)}</td>${['mk','etc','tax','free','sum','vat','n'].map(c=>`<td class="n">${fmt(Math.round(o[c]))}</td>`).join('')}</tr>`;
+ el.innerHTML=`<div class="tbl" style="max-height:none"><table><thead><tr><th>사업자</th><th>마켓봄</th><th>축·수산·기타</th><th>과세</th><th>면세</th><th>합계(공급가액)</th><th>합계(VAT 포함)</th><th>행수</th></tr></thead><tbody>${keys.map(k=>row(k,g[k])).join('')}${row('합계',t)}</tbody></table></div>`}
+function render(){nav();if(!D)return;kpis();
+ const n=document.getElementById('notice');n.hidden=!NOTE[tab];n.textContent=(tab==='월말 대사(로트)'?'마감 기준일 '+D.cutoff+' · ':'')+(NOTE[tab]||'');
+ const T=D.tabs[tab],mi=idx(T,/^마감월$/),fi=filterCol(T);
+ const months=mi>=0?[...new Set(T.rows.map(r=>String(r[mi])))].filter(Boolean).sort().reverse():[];
+ if(mi>=0&&!month)month=months[0]||'';
+ const opts=fi>=0?[...new Set(T.rows.map(r=>r[fi]).filter(Boolean))]:[];
+ document.getElementById('bar').innerHTML=`<input id="q" placeholder="검색" value="${esc(q)}">`+(months.length?`<select id="m">${months.map(o=>`<option ${o===month?'selected':''}>${o}</option>`).join('')}</select>`:'')+(opts.length?`<select id="f"><option value="">전체 ${esc(T.cols[fi])}</option>${opts.map(o=>`<option ${o===flt?'selected':''}>${esc(o)}</option>`).join('')}</select>`:'')+`<span class="sub" id="cnt"></span>`;
+ document.getElementById('q').oninput=e=>{q=e.target.value;table()};
+ const m=document.getElementById('m');if(m)m.onchange=e=>{month=e.target.value;summary();table()};
+ const f=document.getElementById('f');if(f)f.onchange=e=>{flt=e.target.value;table()};
+ summary();table()}
+function table(){const T=D.tabs[tab],r=current(),qi=tab==='재고 현황'?idx(T,/^현재고$/):-1;
+ document.getElementById('cnt').textContent=`${fmt(r.length)}건`;
+ document.getElementById('t').innerHTML=`<thead><tr>${T.cols.map((c,i)=>`<th data-i="${i}">${esc(c)}</th>`).join('')}</tr></thead><tbody>${r.slice(0,3000).map(x=>`<tr class="${qi>=0&&+x[qi]<0?'bad':''}">${x.map(v=>`<td class="${typeof v==='number'?'n':''}" title="${typeof v==='string'&&v.length>30?esc(v):''}">${esc(fmt(v))}</td>`).join('')}</tr>`).join('')}</tbody>`;
+ document.querySelectorAll('th[data-i]').forEach(th=>th.onclick=()=>{const i=+th.dataset.i;dir=sort===i?-dir:1;sort=i;table()})}
+async function get(r){document.getElementById('at').textContent='불러오는 중…';
+ const j=await fetch('/api/data'+(r?'?refresh=1':'')).then(x=>x.json());
+ if(j.error){document.getElementById('at').innerHTML='<span class="err">읽기 실패: '+esc(j.error)+'</span>';return}
+ D=j;document.getElementById('at').textContent='시트 기준 '+j.at;render()}
+document.getElementById('refresh').onclick=()=>get(true);
+nav();get(false);
+</script>
+</body>
+</html>
