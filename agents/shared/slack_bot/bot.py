@@ -183,6 +183,29 @@ def parse_result(path):
         return None
 
 
+def session_saved(session):
+    """claude 세션 파일(~/.claude/projects/*/<id>.jsonl)이 남아 있는지 — 없으면 --resume 이 실패한다"""
+    try:
+        return any((Path.home() / ".claude" / "projects").glob(f"*/{session}.jsonl"))
+    except OSError:
+        return True  # 확인 못 하면 원래대로 resume 시도
+
+
+def thread_context(ch, root, ts, text, head, tail, lost=False):
+    """스레드 원글 + 최근 글 6개를 지시 앞에 붙임 — 이어 쓸 세션이 없을 때 담당이 앞 내용을 알게"""
+    try:
+        msgs = app.client.conversations_replies(channel=ch, ts=root, limit=100)["messages"]
+        parent = msgs[0].get("text", "")
+        recent = [m.get("text", "")[:800] for m in msgs[1:] if m.get("ts") != ts][-6:]
+        note = "[안내] 이 스레드의 이전 대화 기록이 정리돼 새로 시작한다. 아래 스레드 글로 앞 내용을 파악하고 이어서 처리해.\n\n" if lost else ""
+        return (note + f"{head}\n{parent[:3500]}\n\n"
+                + ("[스레드 최근 글]\n" + "\n---\n".join(recent) + "\n\n" if recent else "")
+                + f"{tail}\n{text}")
+    except Exception as e:
+        log.warning("스레드 읽기 실패 %s", e)
+        return text
+
+
 def run_claude(prompt, session, resume, agent, once=False):
     """결과(JSON)를 파이프가 아닌 파일로 받음 — 봇이 죽어도 Claude 작업은 끝까지 가고 결과가 남는다
     once=True: 한 번 하고 끝나는 자동 작업(계산서 자동 첨부·예약 작업·월 루틴·승인 버튼 실행) → 세션 기록을 남기지 않음
@@ -263,33 +286,24 @@ def worker(agent):
         once = meta.get("once", False)
         session = None if once else threads.get(root)
         resume = session is not None
+        lost = resume and not session_saved(session)
+        if lost:  # 세션 파일이 없음(session_archive로 옮김 등) — --resume 오류 대신 새 대화로, 스레드 내용을 같이 넘김 (2026-11-05)
+            log.info("세션 파일 없음 %s → 새 세션으로", session)
+            resume = False
         if once:  # 기록 없는 1회 작업 — 스레드에 묶지 않음. 나중에 사람이 이 스레드에 답하면 새 대화로 시작하고 원글·최근 글을 받는다
             session = str(uuid.uuid4())
             if root != ts:
-                try:
-                    msgs = app.client.conversations_replies(channel=ch, ts=root, limit=30)["messages"]
-                    parent = msgs[0].get("text", "")
-                    recent = [m.get("text", "")[:800] for m in msgs[1:] if m.get("ts") != ts][-6:]
-                    text = (f"[이 스레드의 원글]\n{parent[:3000]}\n\n" + ("[스레드 최근 글]\n" + "\n---\n".join(recent) + "\n\n" if recent else "")
-                            + f"[지금 할 일]\n{text}")
-                except Exception as e:
-                    log.warning("스레드 읽기 실패 %s", e)
+                text = thread_context(ch, root, ts, text, "[이 스레드의 원글]", "[지금 할 일]")
         elif not resume:
             session = str(uuid.uuid4())
             with _lock:
                 threads[root] = session
                 save(STATE, threads)
-            if root != ts:  # 자동 보고(아침 입고확인 등) 스레드에 단 답글 — 담당이 원글 내용을 모르므로 같이 넘김 (2026-11-04)
-                # 기록 없는 1회 작업(계산서 첨부·예약·월 루틴) 스레드도 여기로 옴 → 원글 + 최근 글(작업 결과·카드)을 같이 넘김
-                try:
-                    msgs = app.client.conversations_replies(channel=ch, ts=root, limit=30)["messages"]
-                    parent = msgs[0].get("text", "")
-                    recent = [m.get("text", "")[:800] for m in msgs[1:] if m.get("ts") != ts][-6:]
-                    text = (f"[이 스레드의 원글 — 봇 자동 보고]\n{parent[:3500]}\n\n"
-                            + ("[스레드 최근 글]\n" + "\n---\n".join(recent) + "\n\n" if recent else "")
-                            + f"[원글에 대한 답글]\n{text}")
-                except Exception as e:
-                    log.warning("원글 읽기 실패 %s", e)
+            # 자동 보고(아침 입고확인 등)·기록 없는 1회 작업 스레드에 단 답글, 또는 세션 파일이 없어진 스레드
+            # → 담당이 앞 내용을 모르므로 원글 + 최근 글(작업 결과·카드)을 같이 넘김 (2026-11-04, 11-05)
+            if root != ts or lost:
+                text = thread_context(ch, root, ts, text, "[이 스레드의 원글]" if lost else "[이 스레드의 원글 — 봇 자동 보고]",
+                                      "[원글에 대한 답글]", lost)
         unreact(ch, ts, "hourglass_flowing_sand")
         react(ch, ts, "eyes")
         log.info("시작 [%s] %s resume=%s: %s", agent, session, resume, text[:200])
