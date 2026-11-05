@@ -14,7 +14,7 @@ agent_livestock_products/automation/logs/
 
 # 단톡방 대화 원본 (동료 개인정보 포함 — 깃에 올리지 않음)
 return manual/raw/
-memo/제때_물류사_비딩/raw_단톡방/
+bidding/제때_물류사/raw_단톡방/
 
 # 지출결의서 원본 CSV (전 직원 계좌번호·개인경비 포함 — 깃에 올리지 않음)
 memo/지출결의서_자동입력/raw/
@@ -23,7 +23,7 @@ memo/지출결의서_자동입력/raw/
 bidding/리우/*로그인*.xlsx
 
 # 자사 법인 사업자등록증·통장 사본 (인증서류·계좌 실물 이미지 — 깃에 올리지 않음)
-사업자등록증,통장사본/
+_공용/사업자등록증,통장사본/
 
 # 회의록 자동정리 (로컬 산출물)
 meeting minutes/automation/logs/
