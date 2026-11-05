@@ -122,6 +122,7 @@ $statusFormat
 # --allowedTools: 무인 실행이므로 필요한 도구만 명시 허용 (Bash/Write/Edit 는 의도적으로 제외).
 $claudeArgs = @(
     '-p', $prompt,
+    '--no-session-persistence',  # 무인 1회 실행 — VS Code 세션 목록에 쌓이지 않게 (2026-11-05)
     '--mcp-config', '.mcp.json',
     '--strict-mcp-config',
     '--allowedTools', 'mcp__notion', 'WebFetch', 'WebSearch', 'Read', 'Glob', 'Grep', 'Skill', 'TodoWrite'
@@ -169,7 +170,7 @@ STATUS: 원장 N행 · 카드 N장(초안 N)
 조회에 실패했으면 대신 이 한 줄만: STATUS: 검증실패
 "@
     Write-Log '노션 기록 검증 시작'
-    $verifyOut = & $claudeExe -p $verifyPrompt --mcp-config '.mcp.json' --strict-mcp-config --allowedTools 'mcp__notion' 2>&1 |
+    $verifyOut = & $claudeExe -p $verifyPrompt --no-session-persistence --mcp-config '.mcp.json' --strict-mcp-config --allowedTools 'mcp__notion' 2>&1 |
         ForEach-Object { if ($_ -is [System.Management.Automation.ErrorRecord]) { $_.ToString() } else { $_ } }
     $verifyText = ($verifyOut -join "`n")
     Add-Content -Path $logFile -Value ("[검증] " + $verifyText) -Encoding utf8

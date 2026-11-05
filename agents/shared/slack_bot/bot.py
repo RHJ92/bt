@@ -183,11 +183,16 @@ def parse_result(path):
         return None
 
 
-def run_claude(prompt, session, resume, agent):
-    """결과(JSON)를 파이프가 아닌 파일로 받음 — 봇이 죽어도 Claude 작업은 끝까지 가고 결과가 남는다"""
+def run_claude(prompt, session, resume, agent, once=False):
+    """결과(JSON)를 파이프가 아닌 파일로 받음 — 봇이 죽어도 Claude 작업은 끝까지 가고 결과가 남는다
+    once=True: 한 번 하고 끝나는 자동 작업(계산서 자동 첨부·예약 작업·월 루틴·승인 버튼 실행) → 세션 기록을 남기지 않음
+    (VS Code 세션 목록에 쌓이지 않게, 2026-11-05). 스레드 대화는 「[슬랙] 담당명」 이름으로 저장 — 이어서 답해야 하니까"""
     args = [str(CLAUDE), "-p", prompt, "--output-format", "json", "--permission-mode", "auto",
             "--chrome", "--append-system-prompt", system_for(agent)]
-    args += ["--resume", session] if resume else ["--session-id", session]
+    if once:
+        args += ["--no-session-persistence", "--session-id", session]  # session-id는 재시작 복구(_claude_alive)·결과 파일 이름용
+    else:
+        args += (["--resume", session] if resume else ["--session-id", session]) + ["-n", f"[슬랙] {agent}"]
     env = dict(os.environ, CLAUDE_FROM_SLACK="1", PYTHONIOENCODING="utf-8")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out_path = OUT_DIR / f"{session}_{int(time.time())}.json"
@@ -255,17 +260,34 @@ def worker(agent):
     while True:
         ch, ts, thread_ts, text, meta = q.get()
         root = thread_ts or ts
-        session = threads.get(root)
+        once = meta.get("once", False)
+        session = None if once else threads.get(root)
         resume = session is not None
-        if not resume:
+        if once:  # 기록 없는 1회 작업 — 스레드에 묶지 않음. 나중에 사람이 이 스레드에 답하면 새 대화로 시작하고 원글·최근 글을 받는다
+            session = str(uuid.uuid4())
+            if root != ts:
+                try:
+                    msgs = app.client.conversations_replies(channel=ch, ts=root, limit=30)["messages"]
+                    parent = msgs[0].get("text", "")
+                    recent = [m.get("text", "")[:800] for m in msgs[1:] if m.get("ts") != ts][-6:]
+                    text = (f"[이 스레드의 원글]\n{parent[:3000]}\n\n" + ("[스레드 최근 글]\n" + "\n---\n".join(recent) + "\n\n" if recent else "")
+                            + f"[지금 할 일]\n{text}")
+                except Exception as e:
+                    log.warning("스레드 읽기 실패 %s", e)
+        elif not resume:
             session = str(uuid.uuid4())
             with _lock:
                 threads[root] = session
                 save(STATE, threads)
             if root != ts:  # 자동 보고(아침 입고확인 등) 스레드에 단 답글 — 담당이 원글 내용을 모르므로 같이 넘김 (2026-11-04)
+                # 기록 없는 1회 작업(계산서 첨부·예약·월 루틴) 스레드도 여기로 옴 → 원글 + 최근 글(작업 결과·카드)을 같이 넘김
                 try:
-                    parent = app.client.conversations_replies(channel=ch, ts=root, limit=1)["messages"][0].get("text", "")
-                    text = f"[이 스레드의 원글 — 봇 자동 보고]\n{parent[:3500]}\n\n[원글에 대한 답글]\n{text}"
+                    msgs = app.client.conversations_replies(channel=ch, ts=root, limit=30)["messages"]
+                    parent = msgs[0].get("text", "")
+                    recent = [m.get("text", "")[:800] for m in msgs[1:] if m.get("ts") != ts][-6:]
+                    text = (f"[이 스레드의 원글 — 봇 자동 보고]\n{parent[:3500]}\n\n"
+                            + ("[스레드 최근 글]\n" + "\n---\n".join(recent) + "\n\n" if recent else "")
+                            + f"[원글에 대한 답글]\n{text}")
                 except Exception as e:
                     log.warning("원글 읽기 실패 %s", e)
         unreact(ch, ts, "hourglass_flowing_sand")
@@ -280,7 +302,7 @@ def worker(agent):
         first = next((ln for ln in text.splitlines() if ln.strip() and not ln.startswith("[")), text)
         wid = work_board.add(folder, first.strip(), f"슬랙 {agent}") if folder else None
         try:
-            ok, result, mins = run_claude(text, session, resume, agent)
+            ok, result, mins = run_claude(text, session, resume, agent, once)
         except subprocess.TimeoutExpired:
             ok, result, mins = False, f"{TIMEOUT_MIN}분 안에 끝나지 않아 멈췄어요. 범위를 나눠서 다시 지시해 주세요.", TIMEOUT_MIN
         except Exception as e:
@@ -547,7 +569,7 @@ def on_choice(ack, body, action):
         enqueue(item["agent"], ch, body["message"]["ts"], root,
                 f"{by}이 슬랙 버튼으로 「승인」을 눌렀다. 대상: {title} — {item.get('summary', '')}\n"
                 f"이 건만 진행: {item.get('action') or '준비해 둔 다음 단계'}\n다른 건은 손대지 말고, 끝나면 결과를 짧게 보고.",
-                {"broadcast": True})
+                {"broadcast": True, "once": True})
     elif kind == "review":
         reply(ch, root, f"👀 *{title}* — 직접 검토하시도록 그대로 둘게요. 처리하신 뒤 이 스레드에 알려 주시면 이어서 할게요.")
     else:
@@ -843,7 +865,7 @@ def auto_attach(before):
     who = ", ".join(dict.fromkeys(str(r.get("supplier") or "?") for r in rows))[:300]
     ts = app.client.chat_postMessage(
         channel=ch, text=f"🧾 새 계산서 {len(rows)}건 — 노션 카드 확인하고 조건이 맞으면 첨부할게요 ({who})")["ts"]
-    enqueue("지결계산서담당", ch, ts, ts, ATTACH_TASK.format(n=len(rows), who=who))
+    enqueue("지결계산서담당", ch, ts, ts, ATTACH_TASK.format(n=len(rows), who=who), {"once": True})
     log.info("계산서 자동 첨부 지시 %s건 %s", len(rows), who)
 
 
@@ -939,7 +961,7 @@ def schedule_once(now):
             log.warning("예약 작업 담당 없음 %s", j)
             continue
         post = app.client.chat_postMessage(channel=ch, text=f"⏰ *예약 작업* ({j['at']})\n{j['task']}")
-        enqueue(j["agent"], ch, post["ts"], None, f"[예약 작업 — 호정님이 미리 맡겨 둔 일] {j['task']}")
+        enqueue(j["agent"], ch, post["ts"], None, f"[예약 작업 — 호정님이 미리 맡겨 둔 일] {j['task']}", {"once": True})
         log.info("예약 작업 %s → %s", j["at"], j["agent"])
 
 
@@ -1002,7 +1024,7 @@ def monthly_once(now):
         if load(MONTHLY_DONE, {}).get(name) == prev:  # 이번 달(전월분) 이미 끝남
             continue
         post = app.client.chat_postMessage(channel=ch, text=f"🗓️ *월 정기 루틴 · {name}* ({prev}분, {'·'.join(f'{d}일' for d in rounds)} 회차)")
-        enqueue(agent, ch, post["ts"], None, task(prev, rounds))
+        enqueue(agent, ch, post["ts"], None, task(prev, rounds), {"once": True})
         done[name] = str(max(runs))  # 처리한 회차의 실행일 — 오늘 날짜로 적으면 오늘 늦게 잡힌 다음 회차가 빠짐
         save(MONTHLY_STATE, done)
         log.info("월 정기 루틴 %s %s %s", name, prev, rounds)

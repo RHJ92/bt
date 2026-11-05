@@ -140,6 +140,7 @@ RESULT: <생성한 페이지 URL> | <회의명> | <YYYY-MM-DD> | <내부미팅|�
 
     $claudeArgs = @(
         '-p', $prompt,
+        '--no-session-persistence',  # 무인 1회 실행 — VS Code 세션 목록에 쌓이지 않게 (2026-11-05)
         '--mcp-config', '.mcp.json',
         '--strict-mcp-config',
         '--allowedTools', 'mcp__notion', 'Read', 'Glob', 'Grep'
