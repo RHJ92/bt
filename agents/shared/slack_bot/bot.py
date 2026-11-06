@@ -93,6 +93,19 @@ SYSTEM = """너는 사용자 회사(구매팀) 슬랙의 「{name}」 담당 에
 - 지시에 「[다른 담당 요청]」「[… 회신]」이 붙어 있으면 넘겨받은 일이다 — HANDOFF 를 쓰지 않는다(한 번만 넘길 수 있음)
 - 담당 목록: {agents}
 
+한 업무 = 한 창구 (루트 CLAUDE.md, 2026-11-06 사용자) — 호정님은 한곳에만 말한다. 이 스레드가 창구면 끝까지 여기서 책임진다
+- 호정님에게 「다른 세션/채널에 가서 하세요」「VS Code에서 시키세요」「#○○에 물어보세요」라고 **안내하지 않는다**
+- 다른 담당의 실행이 필요하면 위 HANDOFF 로 네가 직접 넘기고 회신을 받아 이어서 마무리한다(넘겨받은 일이라 HANDOFF 를 못 쓰면 필요한 사실을 정리해 보고 끝에 「#○○ 담당 확인 필요」로만 적는다 — 호정님에게 옮겨 가라고 하지 않음)
+- VS Code 영역 세션 몫의 판단(비딩·계약·안내문·클레임·공급가 결정 등)이 필요하면 세션으로 보내지 말고 **이 스레드에서 호정님께 직접 묻고**, 답을 받으면 그대로 진행한다
+- 다른 영역 자료(시트·원장·다른 거점 문서·검토서)는 직접 읽어도 된다. 쓰기는 이 담당의 제한 범위 안에서만
+- 지시가 「[요청 ID] … 세션이 호정님 대신 맡긴 일」이면 VS Code 세션의 위임(ask.py)이다 — 결과가 그 세션에 그대로 전달되니 질문으로 끝내지 말고 확인한 사실·한 일·남은 판단을 빠짐없이 적는다
+- 예외(안전장치): 돈 나가는 일·외부 발송은 지금처럼 승인 카드
+
+카톡 확인 (2026-11-06) — 업체 단톡방 내용이 필요하면 공용 도구 agents/shared/kakao_intake/kakao.py 로 직접 본다(README §5)
+- 순서: shot(캡처)을 Read로 보고 어떤 서류인지 판별 → 사업자번호·금액처럼 숫자가 필요할 때만 save-file·save-photo로 원본 저장 → 다른 근거와 대조. 썸네일 숫자만으로 확정하지 않는다
+- 읽기·저장만. 카톡으로 보내기·입력은 절대 하지 않는다(보낼 말은 문안으로 보고). open 은 화면을 몇 초 뺏으니 방이 이미 열려 있으면 쓰지 않는다
+- 카톡은 이 회사 PC에만 있다. 저장한 파일 경로·확인한 내용은 보고에 적는다
+
 승인 버튼 (사용자가 슬랙에서 「승인 / 직접검토 / 거절」을 고름)
 - 사용자 승인이 필요한 건(예: 지결 작성완료 직전, 노션 카드 첨부 직전)은 건마다 응답 맨 끝에 아래 형식으로 한 줄씩 쓴다. 봇이 이 줄을 떼고 증빙 이미지 + 버튼 카드로 바꿔 보낸다
   APPROVAL {{"id": "영문숫자 8자 이내", "title": "건 이름", "check": "거래명세서 1,485,000 = 계산서 1,485,000 일치 확인 ✅", "summary": "업체·이체요청일·특이사항 한두 줄", "images": ["계산서 PNG 절대경로", "정리 화면 PNG 절대경로"], "action": "승인을 누르면 할 일 한 줄"}}
@@ -110,6 +123,12 @@ def system_for(agent_name):
     note_path = a.get("노트") or (f"{folder}/업무노트.md" if folder else "agents/shared/slack_bot/총괄비서_업무노트.md")
     docs = f", {folder}/ 의 CLAUDE.md·README.md" if folder else ", agents/README.md(담당 목록)"
     limit = f"- 이 담당의 제한: {a['제한']}\n" if a.get("제한") else ""
+    # 인계함 — VS Code 세션 시절 _지금상태.md를 담당별로 옮겨 둔 파일 (2026-11-05). 「처리 완료」 안 적힌 것만 안내
+    handoff = [f"agents/shared/slack_bot/인계함/{f.name}" for f in sorted((HERE / "인계함").glob(f"{agent_name}_*.md"))
+               if "처리 완료" not in f.read_text(encoding="utf-8", errors="replace")]
+    if handoff:
+        limit += ("- 인계받은 할 일: " + ", ".join(handoff) + " — 지시와 관련 있으면 먼저 읽는다. 남은 할 일은 처리하거나 업무노트로 옮기고, "
+                  "「사용자 결정 필요」는 보고 끝에 묻는다. 다 옮겼으면 그 파일 끝에 「처리 완료 YYYY-MM-DD」 한 줄(파일 삭제는 하지 않음)\n")
     agents = " / ".join(f"{n}({v['역할'][:30]})" for n, v in AGENTS.items()
                         if n != agent_name and v.get("지시"))
     return SYSTEM.format(name=agent_name, role=a["역할"], docs=docs, limit=limit, agents=agents,
@@ -520,6 +539,16 @@ def post_approval(ch, root, agent, session, c):
                 {"type": "button", "text": {"type": "plain_text", "text": DOC_CHOICE["doc_vscode"]},
                  "action_id": "doc_vscode", "value": key}]}])
         return
+    if agent == "주문출고담당":  # 주문출고 채널은 출고처리·출고보류 두 버튼 (2026-11-06 사용자)
+        if c.get("orders"):
+            text += f"\n📦 출고완료 대상: {', '.join(c['orders'])}"
+        if c.get("action"):
+            text += f"\n_「출고처리」를 누르면: {c['action']}_"
+        text += f"\n_{SHIP_HINT}_"
+        app.client.chat_postMessage(channel=ch, thread_ts=root, text=f"출고 확인: {c.get('title', '')}", reply_broadcast=True,
+                                    blocks=[{"type": "section", "text": {"type": "mrkdwn", "text": text}},
+                                            ship_buttons("ship_go", "ship_hold", key)])
+        return
     if c.get("action"):
         text += f"\n_「승인」을 누르면: {c['action']}_"
     blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": text}},
@@ -612,9 +641,42 @@ def post_order_batch(key, path, text, level):
         app.client.files_upload_v2(channel=ch, thread_ts=root, file=str(f), title=f.name, initial_comment=comment)
         time.sleep(3)  # 파일이 버튼보다 먼저 보이게
         app.client.chat_postMessage(channel=ch, thread_ts=root, text=f"{vendor} 주문서", blocks=[
-            {"type": "section", "text": {"type": "mrkdwn", "text": f"*{vendor}* · {len(v['orders'])}주문 {v['rows']}행 — 보내신 뒤 눌러 주세요"}},
-            {"type": "actions", "elements": [{"type": "button", "text": {"type": "plain_text", "text": "📨 보냄"}, "style": "primary",
-                                              "action_id": "order_sent", "value": f"{path}|{vendor}"}]}])
+            {"type": "section", "text": {"type": "mrkdwn", "text": f"*{vendor}* · {len(v['orders'])}주문 {v['rows']}행 — {SHIP_HINT}"}},
+            ship_buttons("order_sent", "order_hold", f"{path}|{vendor}")])
+
+
+# 주문출고 채널 버튼 = 「출고처리」·「출고보류」 두 개 (2026-11-06 사용자 — 보냄·승인·직접검토·거절 대신)
+# 출고처리 = 업체에 주문서를 보냈다 → 보냄 기록 + 마켓봄 출고완료 / 출고보류 = 주문서는 봤지만 직접 검토할 게 있어 출고완료만 미룸
+SHIP_HINT = "업체에 보내셨으면 「출고처리」, 확인했지만 직접 검토할 게 있으면 「출고보류」"
+
+
+def ship_buttons(go_id, hold_id, value, hold=True):
+    els = [{"type": "button", "text": {"type": "plain_text", "text": "🚚 출고처리"}, "style": "primary", "action_id": go_id, "value": value}]
+    if hold:
+        els.append({"type": "button", "text": {"type": "plain_text", "text": "⏸️ 출고보류"}, "action_id": hold_id, "value": value})
+    return {"type": "actions", "elements": els}
+
+
+@app.action("order_hold")
+def on_order_hold(ack, body, action):
+    ack()
+    by = presser(body["user"]["id"])
+    if not by:
+        return
+    path, vendor = action["value"].rsplit("|", 1)
+    ch, msg = body["channel"]["id"], body["message"]
+    with _lock:
+        data = load(Path(path), {})
+        v = data["vendors"][vendor]
+        if v.get("sent"):
+            return
+        v["hold"] = by
+        save(Path(path), data)
+    # 보류 뒤에도 검토가 끝나면 같은 카드에서 바로 출고처리할 수 있게 「출고처리」만 남김
+    app.client.chat_update(channel=ch, ts=msg["ts"], text=f"출고보류: {vendor}", blocks=[
+        {"type": "section", "text": {"type": "mrkdwn", "text": f"⏸️ *{vendor}* 출고보류 · {len(v['orders'])}주문 — {by}\n검토가 끝나면 「출고처리」를 눌러 주세요"}},
+        ship_buttons("order_sent", "order_hold", action["value"], hold=False)])
+    log.info("출고보류 %s %s", vendor, by)
 
 
 @app.action("order_sent")
@@ -627,15 +689,17 @@ def on_order_sent(ack, body, action):
     with _lock:
         data = load(Path(path), {})
         v = data["vendors"][vendor]
+        if v.get("sent"):
+            return  # 두 번 눌림
         v["sent"] = True
         save(Path(path), data)
         sent = {tuple(x) for x in load(SENT, [])} | {(o, vendor) for o in v["orders"]}
         save(SENT, sorted(sent))
     done = [o for o, vs in data["orders"].items() if vendor in vs and "확인 필요" not in vs and all((o, x) in sent for x in vs)]
     wait = [o for o in v["orders"] if o not in done]
-    app.client.chat_update(channel=ch, ts=msg["ts"], text=f"보냄: {vendor}", blocks=[
-        {"type": "section", "text": {"type": "mrkdwn", "text": f"✅ *{vendor}* 보냄 · {len(v['orders'])}주문"}}])
-    text = f"📦 *{vendor}* 보냄 기록"
+    app.client.chat_update(channel=ch, ts=msg["ts"], text=f"출고처리: {vendor}", blocks=[
+        {"type": "section", "text": {"type": "mrkdwn", "text": f"🚚 *{vendor}* 출고처리(주문서 보냄) · {len(v['orders'])}주문"}}])
+    text = f"📦 *{vendor}* 출고처리 — 주문서 보냄 기록"
     if done:
         text += f"\n출고완료 가능 {len(done)}건: " + ", ".join(done[:20])
     if wait:
@@ -645,6 +709,59 @@ def on_order_sent(ack, body, action):
     reply(ch, root, text + ("\n마켓봄 출고완료 처리 중…" if real else ""))
     if real:  # 보냄 = 출고완료 승인 (사용자 지시 2026-11-04 「보내기 누른 건은 마켓봄 출고완료 처리까지」)
         threading.Thread(target=_ship_done, args=(ch, root, real), daemon=True).start()
+
+
+@app.action("ship_go")
+@app.action("ship_hold")
+def on_ship_card(ack, body, action):
+    """주문출고담당 승인 카드(APPROVAL)의 출고처리·출고보류"""
+    ack()
+    key, go = action["value"], action["action_id"] == "ship_go"
+    by = presser(body["user"]["id"])
+    if not by:
+        return
+    with _lock:
+        data = load(APPROVALS, {})
+        item = data.get(key)
+        if not item or item.get("state") not in (("대기", "출고보류") if go else ("대기",)):
+            return
+        item["state"], item["by"] = ("출고처리" if go else "출고보류"), by
+        save(APPROVALS, data)
+    log.info("출고 카드 %s %s %s", key, action["action_id"], by)
+    ch, root, title = item["ch"], item["root"], item.get("title", "")
+    orders = [o for o in item.get("orders") or [] if o]
+    head = f"{'🚚 출고처리' if go else '⏸️ 출고보류'} · *{title}* — {by}"
+    if item.get("check"):
+        head += f"\n🔍 대조: {item['check']}"
+    if item.get("summary"):
+        head += f"\n{item['summary']}"
+    if orders:
+        head += f"\n📦 출고완료 대상: {', '.join(orders)}"
+    blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": head}}]
+    if not go:
+        blocks[0]["text"]["text"] += "\n검토가 끝나면 「출고처리」를 눌러 주세요"
+        blocks.append(ship_buttons("ship_go", "ship_hold", key, hold=False))
+    app.client.chat_update(channel=ch, ts=body["message"]["ts"], text=f"{'출고처리' if go else '출고보류'} · {title}", blocks=blocks)
+    if not go:
+        reply(ch, root, f"⏸️ *{title}* — 마켓봄 출고완료는 보류할게요. 검토하신 뒤 카드의 「출고처리」를 누르시거나 이 스레드에 알려 주세요.")
+        return
+    if orders:
+        with _lock:
+            sent = {tuple(x) for x in load(SENT, [])} | {(o, item.get("vendor") or "카드") for o in orders}
+            save(SENT, sorted(sent))
+        real = [o for o in orders if not o.startswith("시험")]
+        if real:
+            reply(ch, root, f"📦 *{title}* 출고처리 — 마켓봄 출고완료 처리 중… ({len(real)}건)")
+            threading.Thread(target=_ship_done, args=(ch, root, real), daemon=True).start()
+    if item.get("action"):
+        enqueue(item["agent"], ch, body["message"]["ts"], root,
+                f"{by}이 슬랙 버튼으로 「출고처리」를 눌렀다(= 업체에 주문서를 보냈다). 대상: {title} — {item.get('summary', '')}\n"
+                f"이 건만 진행: {item['action']}\n마켓봄 출고완료는 봇이 따로 처리하니 직접 하지 말 것"
+                f"{'(대상 ' + ', '.join(orders) + ')' if orders else ' — 카드에 주문번호(orders)가 없어 출고완료는 안 됐음, 필요하면 보고'}. "
+                f"다른 건은 손대지 말고, 끝나면 결과를 짧게 보고.",
+                {"broadcast": True, "once": True})
+    elif not orders:
+        reply(ch, root, f"🚚 *{title}* 출고처리 기록 — 카드에 주문번호가 없어 마켓봄 출고완료는 하지 않았어요. 필요하면 이 스레드에 알려 주세요.")
 
 
 SHIP_DONE = REPO / "agents" / "inventory_sync" / "scripts" / "ship_done.py"
@@ -749,6 +866,10 @@ WINDOW_ORDER = (5, 9, 18)  # 월~금 09~18시 — 발주 자동입력 (사용자
 WATCH = [  # (이름, 스크립트, 인자, 알림 채널 키 — None 이면 스크립트가 직접 알림, 실행 주기(분), 실행 시간대)
     ("발주 자동입력", REPO / "agents" / "order_intake" / "scripts" / "write_orders.py", ["--write"], "order", 120, WINDOW_ORDER),
     ("계산서 수집", REPO / "agents" / "expense_report" / "scripts" / "invoice_intake.py", [], None, 5, WINDOW_ALL),
+    # 작성 대기 지결의 증빙 도착 알림 — 옛 작업 스케줄러 「계산서 수집 (월-금 10시·17시)」가 하던 걸 봇으로 옮김 (2026-11-05).
+    # 시간대를 1시간으로 좁혀 하루 2회만. 알림은 스크립트가 직접 보내고 같은 증빙은 다시 안 알림(found 키)
+    ("증빙 도착 확인 10시", REPO / "agents" / "expense_report" / "scripts" / "evidence_watch.py", [], None, 120, (5, 10, 11)),
+    ("증빙 도착 확인 17시", REPO / "agents" / "expense_report" / "scripts" / "evidence_watch.py", [], None, 120, (5, 17, 18)),
 ]
 WATCH_STATE = HERE / "state" / "watch_runs.json"  # 봇을 다시 켜도 주기가 처음부터 돌지 않게 마지막 실행 시각을 남김
 _failing = set()
@@ -917,7 +1038,9 @@ def watch_once(now=None):
 
 
 # 하루 한 번 아침 작업 (2026-10-30 사용자 요청: 전날 매입 확정분 → 발주진행현황 입고확인). 결과는 매번 담당 채널에
-DAILY = [  # (이름, 스크립트, 인자, 채널 키, 시작 시각)
+DAILY = [  # (이름, 스크립트, 인자, 채널 키, 시작 시각) — 채널 키 None = 조용한 작업(성공은 로그만, 실패만 #공통_작업완료)
+    # 백업·지난 결과 → agents/_삭제대상/YYMMDD/ (2026-11-05 사용자 「꼭 필요한 게 아니면 삭제 대상 폴더로」). 지우지 않고 옮기기만
+    ("파일 정리", REPO / "agents" / "shared" / "cleanup.py", ["--move"], None, (8, 0)),
     # 08:10 재고·매출 갱신 뒤 종합현황 특이사항만 (읽기 전용, 2026-11-05 사용자 지시) — 갱신이 안 끝났으면 스크립트가 최대 8분 기다림
     ("종합현황 점검", REPO / "agents" / "jette_daily" / "scripts" / "summary_check.py", [], "stock", (8, 20)),
     ("입고확인 입력", REPO / "agents" / "order_intake" / "scripts" / "fill_receipts.py", ["--write"], "closing", (8, 30)),
@@ -942,7 +1065,10 @@ def daily_once(now):
         ok = code == 0 and bool(status)
         body = "\n".join(l for l in out.splitlines() if l.lstrip().startswith(("*", "•", "- ")))
         batch = re.search(r"^BATCH: (.+)$", out, re.M)
-        if ok:
+        if key is None:  # 조용한 작업 — 슬랙에 매일 글이 쌓이지 않게
+            if not ok:
+                send("claude", f"❌ *{name} 실패* (봇 로그 확인)\n{(status or err or out)[-600:]}", "fail")
+        elif ok:
             level = "warn" if "확인 필요" in status else "ok"
             text = f"{'⚠️' if level == 'warn' else '✅'} *{name}* · {status}\n{body}"[:3500]
             if batch:
@@ -974,8 +1100,12 @@ def schedule_once(now):
         if not ch:
             log.warning("예약 작업 담당 없음 %s", j)
             continue
-        post = app.client.chat_postMessage(channel=ch, text=f"⏰ *예약 작업* ({j['at']})\n{j['task']}")
-        enqueue(j["agent"], ch, post["ts"], None, f"[예약 작업 — 호정님이 미리 맡겨 둔 일] {j['task']}", {"once": True})
+        # ask.py(VS Code 세션 → 담당 위임)가 넣은 건 「📨 VS Code 위임」으로 구분 (2026-11-06 사용자)
+        delegated = bool(j.get("ask_id")) or bool(re.match(r"^\[요청 \w+\] .*세션이 .*맡긴 일", j["task"]))
+        label = "📨 *VS Code 위임*" if delegated else "⏰ *예약 작업*"
+        post = app.client.chat_postMessage(channel=ch, text=f"{label} ({j['at']})\n{j['task']}")
+        prefix = "" if delegated else "[예약 작업 — 호정님이 미리 맡겨 둔 일] "
+        enqueue(j["agent"], ch, post["ts"], None, prefix + j["task"], {"once": True})
         log.info("예약 작업 %s → %s", j["at"], j["agent"])
 
 
@@ -1044,6 +1174,120 @@ def monthly_once(now):
         log.info("월 정기 루틴 %s %s %s", name, prev, rounds)
 
 
+# 월말 마감 요청 (2026-11-06 사용자 — agents/expense_report/README.md §11). 날짜가 말일 기준이라 MONTHLY(고정 날짜)와 따로 둠
+# 단계 날짜·대상은 expense_report/scripts/closing_targets.py 가 정함. 대상이 0곳이면 담당을 부르지 않음
+CLOSING = REPO / "agents" / "expense_report" / "scripts" / "closing_targets.py"
+CLOSING_STATE = HERE / "state" / "closing_runs.json"
+CLOSING_AGENT = "지결계산서담당"
+CLOSING_FOLLOW = ((11, 0), (16, 30))  # 회신 확인 회차 — early 날부터 익월 3일까지 평일
+
+
+def _closing_mod():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("closing_targets", CLOSING)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def _closing_task(phase, month, names, plan):
+    L, P = plan["_말일"][0], plan["_말일결제일"][0]
+    common = ("agents/expense_report/README.md §11(월말 마감 요청)·업무노트를 먼저 읽는다. 카톡은 agents/shared/kakao_intake/kakao.py(README §5·5-1).\n"
+              f"대상 목록·업체 정보: `python -X utf8 agents/expense_report/scripts/closing_targets.py targets {phase}` — 진행은 같은 스크립트 `mark 업체 키 값`으로 기록"
+              "(키: 요청 / 원장 / 검토 / 계산서요청 / 계산서 / 메모). 카톡방 이름이 업체명과 달라 못 찾으면 「카톡방 못 찾음」으로 모아 보고.\n")
+    send_rule = ("- 업체마다 카톡방을 열어(`open` → `shot`) 이번 달 20일 이후 명세서·원장이 이미 왔거나 우리가 이미 요청했으면 보내지 않고 `mark`(원장 또는 요청)만.\n"
+                 "- 보낼 곳은 **승인 카드 한 장**(APPROVAL)으로 묶어 올린다: check = 「대상 n곳 · 메일 수신 없음·카톡 확인 완료」, summary = 업체별 보낼 문안 목록, "
+                 "action = 「목록의 업체방마다 kakao.py send --confirm 으로 문안 발송 → 발송 캡처 확인 → mark 업체 요청 \"YYYY-MM-DD HH:MM 카톡\"」. "
+                 "승인 전에는 보내지 않는다(외부 발송 = 승인 카드, 한 업무 = 한 창구 예외).\n")
+    m = int(month[5:])
+    if phase == "payday":
+        body = (f"[월말 마감 요청 · 말일 결제 업체 원장 먼저 (결제일 {P:%m/%d} 3영업일 전)] {month} 마감원장 요청 — 대상 {len(names)}곳: {', '.join(names)}\n" + common + send_rule +
+                f"- 문안: 「안녕하세요. {m}월 마감원장 회신 부탁드립니다.」 (계산서는 원장 검토 뒤 따로 요청)\n"
+                f"- 이 업체들은 결제일 2일 전까지 마감·전날 12시까지 계산서 첨부가 목표 — 회신이 오면 회신 확인 회차를 기다리지 말고 바로 검토")
+    elif phase == "early":
+        body = (f"[월말 마감 요청 · 1차 (말일 {L:%m/%d} 3일 전)] {month} 마감원장 요청 — 대상 {len(names)}곳: {', '.join(names)}\n" + common + send_rule +
+                f"- 문안: 결제일 「당월 말일」 업체 → 「안녕하세요. {m}월 마감원장 회신 부탁드립니다.」 / 그 밖(당월 입고 종료) → 「안녕하세요. 당월 입고 종료되었습니다. {m}월 마감 정산서 부탁드립니다.」\n"
+                "- 원장과 계산서를 한 번에 요청하지 않는다(원장 먼저 → 검토 → 계산서 요청).")
+    elif phase == "all":
+        body = (f"[월말 마감 요청 · 2차 (말일 전날 오후)] 아직 요청 안 한 업체 전체 — 대상 {len(names)}곳: {', '.join(names)}\n" + common + send_rule +
+                f"- 문안: 「안녕하세요. {m}월 마감원장 회신 부탁드립니다.」")
+    elif phase == "lastday":
+        body = (f"[월말 마감 요청 · 말일 입고 업체 ({L:%m/%d} 오전)] 대상 {len(names)}곳: {', '.join(names)}\n" + common + send_rule +
+                f"- 문안: 「안녕하세요. 오늘 입고분까지 포함해 {m}월 마감원장 회신 부탁드립니다.」")
+    elif phase == "deadline":
+        dl = plan["deadline"][0]
+        body = (f"[월말 마감 · 말일 결제 계산서 기한 안내 ({dl:%m/%d} 09:00, 첨부 기한 {dl:%m/%d} 12:00)] 계산서가 아직 없는 말일 결제 업체 {len(names)}곳: {', '.join(names)}\n" + common +
+                "- 먼저 메일(계산서 수집)·카톡방에서 계산서가 이미 왔는지 확인 → 왔으면 `mark 업체 계산서 ...`만.\n"
+                "- 없으면 승인 카드(위와 같은 방식)로: 「안녕하세요. 말일 결제를 위해 "
+                f"{dl.month}/{dl.day} 12시까지 계산서 발행 부탁드립니다. 그 이후 발행되면 다음 결제 주기에 결제됩니다.」"
+                " — 아직 원장 검토 전이면 「원장 회신과 계산서 발행」으로 바꿔 쓴다.")
+    else:  # followup
+        body = (f"[월말 마감 · 회신 확인] 요청했는데 계산서까지 안 끝난 업체 {len(names)}곳: {', '.join(names)}\n" + common +
+                "- 업체마다 메일(계산서 수집 기록)·카톡방에서 원장(마감 정산서) 회신이 왔는지 본다. 원장이 사진·파일이면 save-photo·save-file 로 **원본 저장** 뒤 읽는다(썸네일 숫자로 확정 금지).\n"
+                f"- 원장이 왔으면 바로 검토: `{month[5:].lstrip('0')}월_발주진행현황` 입고일자·입고수량·bt매입단가와 품목별 대조 + 업무노트의 그 업체 특이사항(예: 씨에버상사 11/13 180박스) + 카톡방 별도 협의 확인. "
+                "결과를 `mark 업체 원장 …`·`mark 업체 검토 …`로 기록.\n"
+                "- 맞으면 승인 카드로 계산서 요청: 「확인했습니다. ○월 마감 ○○원(면세/VAT 별도·포함) 맞습니다. 계산서 발행 부탁드립니다.」(면세 = 「계산서」, 과세 = 「세금계산서」) → 승인 후 발송·`mark 업체 계산서요청`.\n"
+                "- 다르면 보내지 말고 차이(품목·수량·금액)와 추정 원인(제때 반품·코드 이동 등)을 「확인 필요」로 보고.\n"
+                "- 계산서가 메일로 들어오면 `mark 업체 계산서 …` 후 기존 지결 절차(§7·§8·§10)로.")
+    return body + "\n끝에 업체별 진행표(요청 / 원장 / 검토 / 계산서요청 / 계산서) 한 장."
+
+
+def closing_once(now):
+    try:
+        m = _closing_mod()
+    except Exception as e:
+        log.warning("월말 마감 모듈 못 읽음 %s", e)
+        return
+    today = now.date()
+    plan = m.plan(today)
+    month = f"{today:%Y-%m}"
+    # 익월 1~3일 평일에는 지난달 회신 확인을 이어 감
+    if today.day <= 3:
+        prev = today.replace(day=1) - dt.timedelta(days=1)
+        month, plan = f"{prev:%Y-%m}", m.plan(prev)
+    state = load(CLOSING_STATE, {})
+    done = state.setdefault(month, {})
+    due = []
+    for phase in ("deadline", "payday", "early", "all", "lastday"):
+        d, (h, mi) = plan[phase]
+        if phase in done or today != d or (now.hour, now.minute) < (h, mi):
+            continue
+        if phase == "deadline" and now.hour >= 12:
+            done[phase] = "기한 지남 — 건너뜀"
+            continue
+        due.append(phase)
+    early_d = min(plan["payday"][0], plan["early"][0])
+    if today.weekday() < 5 and (today >= early_d or today.day <= 3):
+        for h, mi in CLOSING_FOLLOW:
+            tag = f"followup {today} {h:02d}{mi:02d}"
+            if tag not in done and (now.hour, now.minute) >= (h, mi):
+                due.append(("followup", tag))
+    if not due:
+        save(CLOSING_STATE, state)
+        return
+    ch = _channel_of(CLOSING_AGENT)
+    for item in due:
+        phase, tag = item if isinstance(item, tuple) else (item, item)
+        done[tag] = f"{now:%Y-%m-%d %H:%M}"
+        save(CLOSING_STATE, state)
+        try:
+            ref = today if today.day > 3 else dt.date.fromisoformat(month + "-28")
+            names = [x["name"] for x in m.targets(phase, ref)]
+        except Exception as e:
+            log.warning("월말 마감 대상 계산 실패 %s %s", phase, e)
+            send("claude", f"❌ *월말 마감 요청 대상 계산 실패* ({phase})\n{e}", "fail")
+            continue
+        if not names:
+            log.info("월말 마감 %s 대상 0곳", tag)
+            continue
+        if not ch:
+            log.warning("월말 마감 %s — %s 채널 없음", tag, CLOSING_AGENT)
+            continue
+        post = app.client.chat_postMessage(channel=ch, text=f"🗓️ *월말 마감 · {tag}* ({month}) — 대상 {len(names)}곳")
+        enqueue(CLOSING_AGENT, ch, post["ts"], None, _closing_task(phase, month, names, plan), {"once": True})
+        log.info("월말 마감 %s %s곳", tag, len(names))
+
+
 def watcher():
     while True:
         now = dt.datetime.now()
@@ -1052,6 +1296,7 @@ def watcher():
             watch_once(now)
             schedule_once(now)
             monthly_once(now)
+            closing_once(now)
         time.sleep(POLL_MIN * 60)
 
 

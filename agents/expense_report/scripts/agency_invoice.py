@@ -99,7 +99,7 @@ SITES = {
     "logisbill.co": (r"https://www\.logisbill\.com/swf/EML_Controller\.jsp\?[^\"'\s<>]+", _logisbill),
     "bill36524.com": (r"https://www\.wehago\.com/invoice/#/eTaxMail/[^\"'\s<>]+", _wehago),
     "businesson.co.kr": (r"https://www2\.smartbill\.co\.kr/xDti/n_mem/loginCookieClear\.aspx\?[^\"'\s<>]+", _smartbill),
-    "ecount.com": (r"https://l\.ecount\.com/[A-Za-z0-9]+", _ecount),
+    "ecount.com": (r"https://l\.ecount\.com/[A-Za-z0-9_-]+", _ecount),  # 링크 토큰에 _ 가 섞여 있다 (2026-11-06)
 }
 
 

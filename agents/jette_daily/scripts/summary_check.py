@@ -2,10 +2,13 @@
 # 실행: python -X utf8 summary_check.py            (봇이 월~금 08:20 실행 — 08:10 재고·매출 갱신이 끝난 뒤)
 #       python -X utf8 summary_check.py --full     (상단 합산 품목 코드별 전체 표, 특이사항 아닌 것까지)
 #
-# 보는 것 (사용자 기준, 업무노트 2026-11-05)
-#  1. 「발주확인」인데 입고예정 없음 → 매입처 「(제때)…」면 제때 발주 요청, 아니면 본사(구매팀) 발주
-#  2. 상단 합산 품목(5~12행) 코드별 소진 — 임박 = 다음 입고 전 소진 또는 입고예정 없이 7영업일 이내(쌀 3), 영업일 월~토.
-#     같은 브랜드 S·C 등은 합계 일평균으로 출고 중 코드 → 다음 코드 순서, 브랜드가 섞이면 코드별 각자 일평균
+# 보는 것 (사용자 기준, 업무노트 2026-11-05 / 2026-11-06 개정)
+#  1. 상단 합산 품목(5~12행) — *합산* 재고가 소진 시점 전에 입고예정 없이 바닥나면 🚨 긴급.
+#     코드 끝 S·C만 다른 형제 코드에 재고가 있으면 정상이므로 코드별 소진·코드 전환은 알리지 않는다.
+#     같은 브랜드 S·C·M 등은 합계 일평균, 브랜드가 섞인 품목(오징어채)은 브랜드 소계로 본다.
+#     임박 = 다음 입고 전 소진 또는 입고예정 없이 7영업일 이내(쌀 3), 영업일 월~토
+#  2. 「발주확인」인데 입고예정 없음 → 매입처 「(제때)…」면 제때 발주 요청, 아니면 본사(구매팀) 발주.
+#     단 상단 합산 품목 구성 코드는 합산이 무사하면 제외하고 맨 끝에 제외분 한 줄만 남긴다
 #  3. 판단을 틀리게 만드는 수식·데이터 문제 (코드 공백, 품목리스트 미등록, 상단 합계 품목명 불일치, 범위 밖 행, 월 탭)
 #  4. 새로 생긴 수식 오류 — 원래 있던 「보기에만 오류」(AV·AW #REF!, AI~AT #DIV/0!, Z~AB #N/A)는 건수 변화만
 # 이미 보고한 문제는 다음 날부터 「계속」 한 줄로 줄인다 (state/summary_check.json 에 첫 발견일)
@@ -82,8 +85,25 @@ def wait_daily_update(today, minutes=8):
     return False
 
 
+def tops(V):
+    """상단 합산 품목(5~12행) 구성 코드 행 → {행: (품목코드, 품목명)}"""
+    g = lambda r, c: (V[r][c].strip() if r < len(V) and c < len(V[r]) else "")
+    m = {}
+    for top in TOP:
+        pat = {"bt006": "전지 수육용"}.get(g(top, 6), re.sub(r"\(계근\)", "", g(top, 8)))
+        for r in range(14, len(V)):
+            if g(r, 6) and re.search(re.escape(pat), g(r, 8)):
+                m[r] = (g(top, 6), g(top, 8))
+    return m
+
+
 def runway(V, today, full=False):
-    """상단 합산 품목 → [(품목 머리줄, [코드 줄], 특이 여부)]"""
+    """상단 합산 품목 → [(품목 머리줄, [줄], 긴급 여부)]
+
+    2026-11-06 사용자 기준: 코드 끝 S·C만 다른 형제 코드에 재고가 있으면 정상이므로
+    **코드별 소진·코드 전환은 알리지 않는다.** 합산 재고(브랜드가 섞인 품목은 브랜드 소계)가
+    소진 시점 전에 입고예정 없이 바닥나는 경우만 긴급으로 올린다.
+    """
     g = lambda r, c: (V[r][c].strip() if r < len(V) and c < len(V[r]) else "")
     nxt = lambda r: (pdate(g(r, 31)), num(g(r, 32))) if pdate(g(r, 31)) else (None, 0)
     out = []
@@ -94,63 +114,59 @@ def runway(V, today, full=False):
         tot, avg = num(g(top, 19)), num(g(top, 15))
         tend = f"약 {tot / avg:.0f}영업일, {fmt(add_bd(today, tot / avg))} 소진" if avg > 0 else "최근 출고 없음"
         head = f"*{name}* ({code}) — 합계 {q(tot)}{unit} · 하루 {q(avg)} · 전체 {tend}"
-        lines, flag = [], False
-        if len({g(r, 3) for r in comps}) > 1:  # 브랜드 코드가 섞임 → 코드별 각자
+        mixed = len({g(r, 3) for r in comps}) > 1   # 브랜드가 섞이면 브랜드끼리만 대체 가능
+        if mixed:
             head += " _(브랜드별 따로)_"
-            for r in sorted(comps, key=lambda r: -num(g(r, 19))):
-                st, a = num(g(r, 19)), num(g(r, 15))
-                if st == 0 and a == 0:
-                    continue
-                d, qty = nxt(r)
-                warn = False
-                if a > 0:
-                    days, end = st / a, add_bd(today, st / a)
-                    warn = bool((d and end < d) or (not d and round(days) <= limit(name)))
-                    s = f"• {g(r, 6)} ({g(r, 3)}) *{q(st)}* · 하루 {q(a)} → 약 {days:.0f}영업일, {fmt(end)} 소진"
-                else:
-                    s = f"• {g(r, 6)} ({g(r, 3)}) *{q(st)}* · 최근 출고 없음"
-                s += f" · 다음 입고 {fmt(d)} {q(qty)}" if d else " · 입고예정 없음"
-                if warn:
-                    s += "  ⚠️ *임박*"
-                    flag = True
-                if warn or full:
-                    lines.append(s)
+            groups = [(b, [r for r in comps if g(r, 3) == b])
+                      for b in dict.fromkeys(g(r, 3) for r in comps)]
         else:
-            active = [r for r in comps if num(g(r, 14)) > 0] or [r for r in comps if num(g(r, 13)) > 0]
-            order = active + sorted([r for r in comps if r not in active and num(g(r, 19)) > 0],
-                                    key=lambda r: -num(g(r, 19)))
-            cur = today
-            for i, r in enumerate(order):
-                st, (d, qty) = num(g(r, 19)), nxt(r)
-                tag = "출고 중" if r in active else "대기"
-                sfx = re.search(r"[A-Z](?=\()", g(r, 8))
-                label = f"{g(r, 6)} {sfx[0] + '코드 ' if sfx else ''}"
-                mark = ""
-                if avg > 0 and st > 0:
-                    days = st / avg
-                    end = cur = add_bd(cur, days)
-                    rest = sum(num(g(x, 19)) for x in order[i + 1:])
-                    s = f"• {label}*{q(st)}* ({tag}) → 약 {days:.0f}영업일, {fmt(end)} 소진"
-                    if r in active and rest > 0 and round(days) <= limit(name):
-                        mark = f"  🔁 *코드 전환 임박* (이후 다른 코드 {q(rest)})"
-                    elif r in active and ((d and end < d and rest == 0) or (not d and round(days) <= limit(name))):
-                        mark = "  ⚠️ *임박*"
-                else:
-                    s = f"• {label}*{q(st)}* ({tag})"
-                    if r in active:
-                        mark = f" → 재고 0, {fmt(d)} 입고까지 결품 ⚠️" if d else " → 재고 0, 입고예정 없음 ⚠️ *임박*"
-                s += mark + (f" · 다음 입고 {fmt(d)} {q(qty)}" if d else "")
-                flag = flag or bool(mark)
-                if mark or full:
-                    lines.append(s)
-        nd = min([nxt(r)[0] for r in comps if nxt(r)[0]], default=None)
-        if avg > 0:
-            tdays = tot / avg
-            if (nd and add_bd(today, tdays) < nd) or (not nd and round(tdays) <= limit(name)):
-                lines.append(f"• ⚠️ *품목 전체 임박* — 합계로 약 {tdays:.0f}영업일"
-                             + (f", 다음 입고 {fmt(nd)} 전 소진" if nd else ", 입고예정 없음"))
-                flag = True
-        out.append((head, lines, flag))
+            groups = [("", comps)]
+        lines, urgent = [], False
+        for brand, rows in groups:
+            gst = sum(num(g(r, 19)) for r in rows)
+            gavg = sum(num(g(r, 15)) for r in rows) if mixed else avg
+            gnd = min([nxt(r)[0] for r in rows if nxt(r)[0]], default=None)
+            sub, hot = [], False
+            if mixed:                                   # 브랜드별 — 코드마다 자기 일평균
+                for r in sorted(rows, key=lambda r: -num(g(r, 19))):
+                    st, a = num(g(r, 19)), num(g(r, 15))
+                    if st == 0 and a == 0:
+                        continue
+                    d, qty = nxt(r)
+                    if a > 0:
+                        s = (f"• {g(r, 6)} ({g(r, 3)}) *{q(st)}* · 하루 {q(a)} → 약 {st / a:.0f}영업일,"
+                             f" {fmt(add_bd(today, st / a))} 소진")
+                    else:
+                        s = f"• {g(r, 6)} ({g(r, 3)}) *{q(st)}* · 최근 출고 없음"
+                    sub.append(s + (f" · 다음 입고 {fmt(d)} {q(qty)}" if d else " · 입고예정 없음"))
+            else:                                       # 같은 브랜드 S·C·M — 출고 중 코드 → 다음 코드 순서
+                active = [r for r in rows if num(g(r, 14)) > 0] or [r for r in rows if num(g(r, 13)) > 0]
+                order = active + sorted([r for r in rows if r not in active and num(g(r, 19)) > 0],
+                                        key=lambda r: -num(g(r, 19)))
+                cur = today
+                for r in order:
+                    st, (d, qty) = num(g(r, 19)), nxt(r)
+                    tag = "출고 중" if r in active else "대기"
+                    sfx = re.search(r"[A-Z](?=\()", g(r, 8))
+                    lab = f"{g(r, 6)} {sfx[0] + '코드 ' if sfx else ''}"
+                    if avg > 0 and st > 0:
+                        cur = add_bd(cur, st / avg)
+                        s = f"• {lab}*{q(st)}* ({tag}) → 약 {st / avg:.0f}영업일, {fmt(cur)} 소진"
+                    else:
+                        s = f"• {lab}*{q(st)}* ({tag})" + (" → 재고 0" if st == 0 else "")
+                    sub.append(s + (f" · 다음 입고 {fmt(d)} {q(qty)}" if d else " · 입고예정 없음"))
+            if gavg > 0:
+                days, end = gst / gavg, add_bd(today, gst / gavg)
+                if (gnd and end < gnd) or (not gnd and round(days) <= limit(name)):
+                    hot = urgent = True
+                    buyer = ("제때 발주 요청" if any("(제때)" in g(r, 5) for r in rows) else "본사 발주 확인")
+                    sub.append(f"• 🚨 *{brand + ' ' if brand else ''}합산 {q(gst)}{unit} · 하루 {q(gavg)}"
+                               f" → 약 {days:.0f}영업일, {fmt(end)} 소진*"
+                               + (f" · 다음 입고 {fmt(gnd)} — 소진 뒤 도착" if gnd else " · *입고예정 없음*")
+                               + f"  ▶ {buyer}")
+            if sub and (full or hot):
+                lines += ([f"[{brand}]"] if mixed and full else []) + sub
+        out.append((head, lines, urgent))
     return out
 
 
@@ -239,8 +255,21 @@ def main():
     seen = state.get("seen", {})
     out, n = [], 0
 
-    # 1. 발주확인 + 입고예정 없음
+    # 1. 상단 합산 품목 — 합산(브랜드 섞이면 브랜드 소계)이 소진 전 입고 없이 바닥나는 건만 긴급
+    rw = runway(V, today)
+    hot = {g(t, 6) for t, (_h, _l, fl) in zip(TOP, rw) if fl}
+    fire = [(h, ls) for h, ls, fl in rw if fl]
+    if fire:
+        out.append("*🚨 긴급 — 상단 합산 품목 소진 임박 (소진 시점 전 입고예정 없음)*")
+        for h, ls in fire:
+            out += [f"• {h}"] + [f"   {x}" for x in ls]
+        n += len(fire)
+
+    # 2. 발주확인 + 입고예정 없음 — 상단 합산 품목 구성 코드는 합산이 무사하면 제외(2026-11-06 사용자 기준)
+    comp = tops(V)
     need = [r for r in range(4, len(V)) if g(r, 24) == "발주확인" and not g(r, 31)]
+    skip = [r for r in need if r in comp and comp[r][0] not in hot]
+    need = [r for r in need if r not in skip]
     if need:
         jt = [r for r in need if "(제때)" in g(r, 5)]
         hq = [r for r in need if r not in jt]
@@ -252,14 +281,9 @@ def main():
         if hq:
             out += ["• *본사 발주 확인*"] + [row(r) for r in hq]
         n += len(need)
+    tail = (f"• _상단 합산 품목 구성 코드 {len(skip)}건은 형제 코드(S·C 등)에 재고가 있고 합산이 무사해 제외: "
+            + ", ".join(dict.fromkeys(f"{comp[r][1]} {g(r, 6)}" for r in skip)) + "_") if skip else ""
 
-    # 2. 상단 합산 품목 코드별 임박
-    flagged = [(h, ls) for h, ls, fl in runway(V, today) if fl]
-    if flagged:
-        out.append("*🟠 상단 합산 품목 소진 임박*")
-        for h, ls in flagged:
-            out += [f"• {h}"] + [f"   {x}" for x in ls]
-        n += len(flagged)
 
     # 3. 판단을 틀리게 만드는 문제 — 새로 생긴 것만 자세히, 계속되는 건 한 줄
     found = checks(V, F, tabs, today)
@@ -293,7 +317,8 @@ def main():
     STATE.parent.mkdir(exist_ok=True)
     STATE.write_text(json.dumps(state, ensure_ascii=False, indent=1), encoding="utf-8")
 
-    print("\n".join(out) if out else "• 특이사항 없음")
+    out = (out or ["• 특이사항 없음"]) + ([tail] if tail else [])
+    print('\n'.join(out))
     print(f"STATUS: {'확인 필요 · 특이사항 ' + str(n) + '건' if n else '특이사항 없음'}")
 
 

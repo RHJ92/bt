@@ -91,7 +91,16 @@ if ($DryRun) {
     Notify '제때 일일 조회 - 비교만 완료' $body
 }
 elseif ($exit -eq 0 -and $status) {
-    Notify '제때 일일 조회 - 완료' $status
+    # 어떤 시트·탭을 어떤 기준으로 바꿨는지 같이 (사용자 요청 2026-11-06)
+    $map = @{ 'JT01036' = '매입사 블루푸드랩'; 'JT01057' = '매입사 블루트렌드' }
+    $q = $out | Where-Object { $_ -match '^(재고|매출) ' } | ForEach-Object {
+        $l = [string]$_; foreach ($k in $map.Keys) { $l = $l.Replace($k, $map[$k]) }; '  • ' + $l }
+    $chg = $out | Where-Object { $_ -match '^\S+: 시트 \d+행 → 새 \d+행' } | ForEach-Object { '  • ' + $_ }
+    $etc = $out | Where-Object { $_ -match '^(종합현황 주간 열 정렬|재고현황: 병합|\d{4}~\d{4}: 병합)' } | ForEach-Object { '  • ' + $_ }
+    $body = $status + "`n*바꾼 시트:* DAILY 시트 https://docs.google.com/spreadsheets/d/1x1KueQVbAyKYQJV_3pkcHZhJc5YJqjSbadiCIr3tRns — 「재고현황」 탭 + 이번 주 매출 탭, A2:AH 값만(1행 제목·서식 유지). 종합현황은 주간 열 탭 이름 정렬 외에는 안 건드림" +
+        "`n*기준:* 제때 ebiz 조회 결과로 탭 내용을 통째로 덮어씀(쓰기 전 값은 백업) — 재고 = 옥된장 본사(매입사 블루푸드랩·블루트렌드) + 철산장 전체 / 매출 = 배송일이 이번 주(월~토)인 옥된장 본사(옥된장·석문어·정백서) + 철산장" +
+        "`n*조회:*`n" + ($q -join "`n") + "`n*행 수 변화:*`n" + ($chg -join "`n") + "`n*그 밖:*`n" + ($etc -join "`n")
+    Notify '제때 일일 조회 - 완료' $body
 }
 elseif ($exit -eq 2) {
     Notify '제때 일일 조회 - 새 주 탭 필요' ($status + ' 리뉴얼하시면 다음부터 자동으로 하도록 학습합니다.')
