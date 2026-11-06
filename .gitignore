@@ -36,6 +36,8 @@ agents/**/logs/
 agents/**/state/
 agents/**/tests/fixtures/*.eml
 agents/inventory_sync/output/
+# 정리 대기 — 백업·지난 결과를 모아 두는 곳, 사용자가 직접 비움 (2026-11-05)
+agents/_삭제대상/
 
 # 계정·비밀번호 보관 — 절대 커밋 금지
 계정보관/
