@@ -564,6 +564,16 @@ def post_approval(ch, root, agent, session, c):
                                 reply_broadcast=True)
 
 
+def deny(body, owner_only=False):
+    """버튼을 눌렀는데 권한이 없으면 그 사람에게만 보이는 안내 — 아무 반응 없으면 고장으로 보임 (2026-11-06)"""
+    try:
+        app.client.chat_postEphemeral(channel=body["channel"]["id"], user=body["user"]["id"],
+                                      text="이 버튼은 호정님만 누를 수 있어요(문서 반영)." if owner_only
+                                      else "이 버튼은 호정님·팀장님만 누를 수 있어요. 필요하면 호정님께 말씀해 주세요.")
+    except Exception as e:
+        log.warning("권한 안내 실패 %s", e)
+
+
 def presser(uid, owner_only=False):
     """버튼 누른 사람의 호칭 — 누를 수 없는 사람이면 None. 승인 카드는 주인·팀장(2026-11-04 사용자 지시), 문서 반영은 주인만"""
     if uid == cfg.get("owner"):
@@ -577,9 +587,11 @@ def presser(uid, owner_only=False):
 def on_choice(ack, body, action):
     ack()
     key, kind = action["value"], action["action_id"]
-    by = presser(body["user"]["id"], owner_only=load(APPROVALS, {}).get(key, {}).get("owner_only", False))
+    oo = load(APPROVALS, {}).get(key, {}).get("owner_only", False)
+    by = presser(body["user"]["id"], owner_only=oo)
     if not by:
-        return
+        log.info("버튼 권한 없음 %s %s", body["user"]["id"], action.get("action_id"))
+        return deny(body, oo)
     with _lock:
         data = load(APPROVALS, {})
         item = data.get(key)
@@ -662,7 +674,7 @@ def on_order_hold(ack, body, action):
     ack()
     by = presser(body["user"]["id"])
     if not by:
-        return
+        return deny(body)
     path, vendor = action["value"].rsplit("|", 1)
     ch, msg = body["channel"]["id"], body["message"]
     with _lock:
@@ -683,7 +695,7 @@ def on_order_hold(ack, body, action):
 def on_order_sent(ack, body, action):
     ack()
     if not presser(body["user"]["id"]):
-        return
+        return deny(body)
     path, vendor = action["value"].rsplit("|", 1)
     ch, msg = body["channel"]["id"], body["message"]
     with _lock:
@@ -719,7 +731,7 @@ def on_ship_card(ack, body, action):
     key, go = action["value"], action["action_id"] == "ship_go"
     by = presser(body["user"]["id"])
     if not by:
-        return
+        return deny(body)
     with _lock:
         data = load(APPROVALS, {})
         item = data.get(key)
